@@ -1,0 +1,118 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/*
+ * BARBERIN design system — mobile-first, blue identity, subtle liquid glass.
+ * Glass is secondary, readability is primary.
+ */
+
+@theme inline {
+  --radius-button: 12px;
+  --radius-input: 12px;
+  --radius-sm-card: 14px;
+  --radius-card: 18px;
+  --radius-lg-card: 20px;
+  --radius-modal: 24px;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-deep: var(--deep);
+  --color-navy: var(--navy);
+  --color-slate: var(--slate);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-large: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+:root {
+  --background: oklch(0.212 0.041 259.2); /* #0D1526 navy */
+  --foreground: oklch(1 0 0);
+  --card: oklch(0.278 0.038 260.5); /* #172133 slate */
+  --card-foreground: oklch(1 0 0);
+  --primary: oklch(0.657 0.184 267.5); /* #4E78FF */
+  --primary-soft: oklch(0.755 0.126 267.5); /* #7AA7FF */
+  --primary-foreground: oklch(1 0 0);
+  --deep: oklch(0.29 0.072 267); /* #1B284D */
+  --navy: oklch(0.212 0.041 259.2);
+  --slate: oklch(0.278 0.038 260.5);
+  --muted: oklch(0.33 0.036 262);
+  --muted-foreground: oklch(0.78 0.02 258);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.755 0.126 267.5);
+  --success: oklch(0.723 0.19 149.6); /* #22C55E */
+  --warning: oklch(0.769 0.162 70.1); /* #F59E0B */
+  --danger: oklch(0.637 0.208 25.4); /* #EF4444 */
+  --info: oklch(0.749 0.13 223); /* #38BDF8 */
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    background-image:
+      radial-gradient(60% 40% at 80% -5%, rgba(78, 120, 255, 0.28), transparent 70%),
+      radial-gradient(70% 45% at -10% 25%, rgba(122, 167, 255, 0.16), transparent 70%);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-soft);
+    outline-offset: 2px;
+  }
+}
+
+/* Liquid glass surfaces */
+@utility glass-1 {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+@utility glass-2 {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+}
+
+@utility glass-3 {
+  background: rgba(13, 21, 38, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(24px);
+}
+
+@utility safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+@utility safe-top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+}

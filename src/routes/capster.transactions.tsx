@@ -1,0 +1,157 @@
+import {
+  createFileRoute,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
+import { Plus, Search } from "lucide-react";
+import { useState } from "react";
+
+import { MobileShell, PrimaryButton } from "@/components/barberin/ui";
+import {
+  CapsterBottomNav,
+  CapsterHeader,
+  CapsterTransactionCard,
+} from "@/components/capster/ui";
+import { capsterActions, useCapster } from "@/lib/capster-store";
+
+export const Route = createFileRoute("/capster/transactions")({
+  head: () => ({
+    meta: [
+      { title: "Daftar Transaksi — BARBERIN Capster" },
+      {
+        name: "description",
+        content: "Daftar seluruh transaksi yang ditangani Capster.",
+      },
+    ],
+  }),
+  component: CapsterTransactionsPage,
+});
+
+function CapsterTransactionsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { transactions } = useCapster();
+
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<
+    "Semua" | "Selesai" | "Batal"
+  >("Semua");
+
+  if (location.pathname !== "/capster/transactions") {
+    return <Outlet />;
+  }
+
+  const filtered = transactions.filter((t) => {
+
+    const matchSearch =
+      t.id.toLowerCase().includes(search.toLowerCase()) ||
+      t.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      t.serviceNames.toLowerCase().includes(search.toLowerCase());
+
+    if (!matchSearch) return false;
+    if (activeFilter === "Semua") return true;
+    return t.status === activeFilter;
+  });
+
+  return (
+    <MobileShell>
+      <CapsterHeader
+        title="Daftar Transaksi"
+        backTo="/capster/dashboard"
+        showBack={true}
+        showActions={true}
+      />
+
+      <main className="flex-1 space-y-4 px-4 pb-24 pt-3">
+        {/* Search Bar */}
+        <div className="relative flex items-center">
+          <span className="absolute left-3.5 text-muted-foreground">
+            <Search className="h-4 w-4" strokeWidth={2} />
+          </span>
+
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari transaksi..."
+            className="min-h-[46px] w-full rounded-[12px] border border-white/16 bg-white/8 pl-10 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary-soft"
+          />
+        </div>
+
+        {/* Filter Chips */}
+        <div className="flex items-center gap-2">
+          {(["Semua", "Selesai", "Batal"] as const).map((filter) => {
+            const active = activeFilter === filter;
+
+            return (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+                className={
+                  active
+                    ? "rounded-full bg-primary px-4 py-1.5 text-[12px] font-bold text-white shadow-md transition-all"
+                    : "glass-1 rounded-full px-4 py-1.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all"
+                }
+              >
+                {filter}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* List of Transactions */}
+        <div className="space-y-3">
+          {filtered.map((trx) => (
+            <CapsterTransactionCard
+              key={trx.id}
+              trx={trx}
+              onClick={() =>
+                navigate({
+                  to: "/capster/transactions/$transactionId",
+                  params: {
+                    transactionId: trx.id,
+                  },
+                })
+              }
+            />
+          ))}
+
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <p className="text-[14px] font-semibold">
+                Belum Ada Transaksi
+              </p>
+
+              <p className="mt-1 text-[12px]">
+                Tidak ada transaksi yang sesuai kriteria pencarian.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </main>
+
+      {/* Floating CTA Button '+ BUAT TRANSAKSI' */}
+      <div className="pointer-events-none fixed bottom-16 left-0 right-0 z-30 mx-auto max-w-[430px] px-4">
+        <div className="pointer-events-auto shadow-2xl">
+          <PrimaryButton
+  onClick={() => {
+    capsterActions.initManualDraft();
+
+    navigate({
+      to: "/capster/transactions/manual/services",
+    });
+  }}
+  className="shadow-[0_8px_24px_rgba(78,120,255,0.45)]"
+>
+  <Plus className="h-5 w-5" strokeWidth={2.5} />
+  + BUAT TRANSAKSI
+</PrimaryButton>
+        </div>
+      </div>
+
+      <CapsterBottomNav activeTab="transactions" />
+    </MobileShell>
+  );
+}
