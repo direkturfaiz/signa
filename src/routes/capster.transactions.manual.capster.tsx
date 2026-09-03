@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BottomActionBar,
@@ -8,9 +8,11 @@ import {
   EmptyState,
   MobileShell,
   PrimaryButton,
+  SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader } from "@/components/capster/ui";
-import { CAPSTERS, capsterActions, useCapster } from "@/lib/capster-store";
+import { capsterActions, useCapster, type Capster } from "@/lib/capster-store";
+import { getCapsters } from "@/lib/capsters";
 
 export const Route = createFileRoute("/capster/transactions/manual/capster")({
   head: () => ({
@@ -28,12 +30,37 @@ export const Route = createFileRoute("/capster/transactions/manual/capster")({
 function ManualSelectCapsterPage() {
   const navigate = useNavigate();
   const { manualDraft } = useCapster();
+  const [capsters, setCapsters] = useState<Capster[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const available = CAPSTERS.filter((c) => c.status === "AVAILABLE");
+  useEffect(() => {
+    let mounted = true;
+    getCapsters()
+      .then((data) => {
+        if (!mounted) return;
+        const mapped: Capster[] = data.map((c) => ({
+          id: c.id_capster,
+          name: c.name,
+          role: c.role,
+          status: c.status,
+        }));
+        setCapsters(mapped);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const available = capsters.filter((c) => c.status === "AVAILABLE");
   const selectedCapsterId = manualDraft.capsterId;
 
-  const handleSelectCapster = (capster: (typeof CAPSTERS)[number]) => {
+  const handleSelectCapster = (capster: Capster) => {
     capsterActions.setManualCapster(capster);
 
     if (error) {
@@ -63,7 +90,12 @@ function ManualSelectCapsterPage() {
       />
 
       <main className="flex-1 space-y-3 px-4 pb-28 pt-4">
-        {available.length === 0 ? (
+        {loading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : available.length === 0 ? (
           <EmptyState
             icon={UserRound}
             title="Belum ada capster yang tersedia."
@@ -75,7 +107,7 @@ function ManualSelectCapsterPage() {
               Pilih capster yang bertugas menangani pesanan ini.
             </p>
 
-            {CAPSTERS.map((capster) => (
+            {capsters.map((capster) => (
               <CapsterCard
                 key={capster.id}
                 capster={capster}

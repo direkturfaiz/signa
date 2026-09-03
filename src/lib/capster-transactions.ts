@@ -1,15 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
-  payments,
-  services,
-  transactionItems,
-  transactions,
+  barbershop,
+  booking,
+  capster,
+  detailBooking,
+  layanan,
+  pelanggan,
+  pembayaran,
+  shiftCapster,
+  struk,
+  transaksi,
   users,
 } from "@/db/schema";
-
-type PaymentMethod = "tunai" | "qris" | "transfer";
 
 type CreateManualTransactionInput = {
   customerName: string;
@@ -17,31 +21,256 @@ type CreateManualTransactionInput = {
   notes?: string;
   capsterId: string;
   serviceIds: string[];
-  paymentMethod: PaymentMethod;
+  paymentMethod: "tunai" | "qris" | "transfer";
   cashReceived?: number;
 };
 
-function generateId() {
-  return crypto.randomUUID();
+function generateStrukNumber() {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `STR-${ymd}-${rand}`;
 }
 
-function generateTransactionNumber() {
-  const now = new Date();
+export const getCapsterTransactions = createServerFn({
+  method: "GET",
+})
+  .validator(
+    (
+      data:
+        | {
+            capsterId?: string;
+            todayOnly?: boolean;
+          }
+        | undefined,
+    ) => data,
+  )
+  .handler(async ({ data }) => {
+    let query = db
+      .select({
+        id: transaksi.id_transaksi,
+        id_booking: transaksi.id_booking,
+        id_shift: transaksi.id_shift,
+        id_pelanggan: transaksi.id_pelanggan,
+        subtotal: transaksi.subtotal,
+        discount: transaksi.diskon,
+        total: transaksi.total,
+        status_transaksi: transaksi.status_transaksi,
+        created_at: transaksi.created_at,
+        customerName: users.nama_lengkap,
+        customerPhone: users.no_hp,
+      })
+      .from(transaksi)
+      .innerJoin(pelanggan, eq(transaksi.id_pelanggan, pelanggan.id_pelanggan))
+      .innerJoin(users, eq(pelanggan.id_user, users.id_user))
+      .orderBy(desc(transaksi.created_at));
 
-  const date =
-    `${now.getFullYear()}` +
-    `${String(now.getMonth() + 1).padStart(2, "0")}` +
-    `${String(now.getDate()).padStart(2, "0")}`;
+    const rows = await query;
+    const results = [];
 
-  const random = Math.floor(1000 + Math.random() * 9000);
+    for (const r of rows) {
+      if (data?.todayOnly) {
+        const today = new Date();
+        const txDate = new Date(r.created_at);
+        if (
+          txDate.getDate() !== today.getDate() ||
+          txDate.getMonth() !== today.getMonth() ||
+          txDate.getFullYear() !== today.getFullYear()
+        ) {
+          continue;
+        }
+      }
 
-  return `TRX-${date}-${random}`;
-}
+      let capsterName = "Capster";
+      let capsterId = "";
+      if (r.id_booking) {
+        const b = await db
+          .select({ id_capster: booking.id_capster })
+          .from(booking)
+          .where(eq(booking.id_booking, r.id_booking))
+          .limit(1);
+
+        if (b[0]?.id_capster) {
+          capsterId = b[0].id_capster;
+          const c = await db
+            .select({ name: users.nama_lengkap })
+            .from(capster)
+            .innerJoin(users, eq(capster.id_user, users.id_user))
+            .where(eq(capster.id_capster, b[0].id_capster))
+            .limit(1);
+          if (c[0]) capsterName = c[0].name;
+        }
+      }
+
+      const items: {
+        service: {
+          id: string;
+          name: string;
+          price: number;
+          category: string;
+        };
+        quantity: number;
+      }[] = [];
+
+      if (r.id_booking) {
+        const details = await db
+          .select({
+            id_layanan: detailBooking.id_layanan,
+            nama_layanan: layanan.nama_layanan,
+            harga_satuan: detailBooking.harga_satuan,
+            qty: detailBooking.qty,
+          })
+          .from(detailBooking)
+          .innerJoin(layanan, eq(detailBooking.id_layanan, layanan.id_layanan))
+          .where(eq(detailBooking.id_booking, r.id_booking));
+
+        details.forEach((d) => {
+          items.push({
+            service: {
+              id: d.id_layanan,
+              name: d.nama_layanan,
+              price: Number(d.harga_satuan),
+              category: "Barbershop",
+            },
+            quantity: d.qty,
+          });
+        });
+      }
+
+      const serviceNames =
+        items.length > 0
+          ? items.map((i) => i.service.name).join(" + ")
+          : "Layanan Barbershop";
+
+      const [pay] = await db
+        .select()
+        .from(pembayaran)
+        .where(eq(pembayaran.id_transaksi, r.id))
+        .limit(1);
+
+      const cashReceived = pay?.referensi?.startsWith("Tunai: ")
+        ? Number(pay.referensi.replace("Tunai: ", ""))
+        : Number(r.total);
+
+      const change = Math.max(0, cashReceived - Number(r.total));
+
+      let displayStatus: "Selesai" | "Menunggu" | "Batal" = "Menunggu";
+      if (r.status_transaksi === "paid") {
+        displayStatus = "Selesai";
+      } else if (r.status_transaksi === "cancelled") {
+        displayStatus = "Batal";
+      }
+
+      results.push({
+        id: r.id,
+        date: r.created_at.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        }),
+        time: r.created_at.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        customerName: r.customerName,
+        customerPhone: r.customerPhone ?? undefined,
+        items,
+        serviceNames,
+        subtotal: Number(r.subtotal),
+        discount: Number(r.discount),
+        total: Number(r.total),
+        paymentMethod: (pay?.metode_pembayaran ?? "tunai") as
+          | "tunai"
+          | "qris"
+          | "transfer",
+        cashReceived,
+        change,
+        status: displayStatus,
+        capsterId,
+        capsterName,
+      });
+    }
+
+    return results;
+  });
+
+export const getDashboardMetrics = createServerFn({
+  method: "GET",
+}).handler(async () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const txs = await db
+    .select({
+      id_transaksi: transaksi.id_transaksi,
+      id_booking: transaksi.id_booking,
+      total: transaksi.total,
+      status_transaksi: transaksi.status_transaksi,
+      created_at: transaksi.created_at,
+    })
+    .from(transaksi)
+    .where(gte(transaksi.created_at, today));
+
+  const totalTransaksi = txs.length;
+  const totalPendapatan = txs.reduce((sum, t) => {
+    return sum + (t.status_transaksi === "paid" ? Number(t.total) : 0);
+  }, 0);
+
+  let totalLayanan = 0;
+  let selesai = 0;
+  let menunggu = 0;
+  let dibatalkan = 0;
+
+  for (const t of txs) {
+    if (t.status_transaksi === "paid") selesai++;
+    else if (t.status_transaksi === "cancelled") dibatalkan++;
+    else menunggu++;
+
+    if (t.id_booking) {
+      const dbRows = await db
+        .select({ qty: detailBooking.qty })
+        .from(detailBooking)
+        .where(eq(detailBooking.id_booking, t.id_booking));
+      totalLayanan += dbRows.reduce((s, d) => s + d.qty, 0);
+    }
+  }
+
+  const activeCapsters = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(capster)
+    .where(eq(capster.status, "active"));
+
+  const capsterAktif = Number(activeCapsters[0]?.count ?? 2);
+
+  return {
+    totalTransaksi,
+    deltaTransaksi: `Hari ini`,
+    totalPendapatan,
+    deltaPendapatan: `Hari ini`,
+    totalLayanan,
+    deltaLayanan: `Hari ini`,
+    capsterAktif,
+    deltaCapster: `Aktif`,
+    statusLayanan: {
+      selesai,
+      sedangDikerjakan: 0,
+      menunggu,
+      dibatalkan,
+    },
+    ringkasanHariIni: {
+      totalPendapatan,
+      totalTransaksi,
+      totalLayanan,
+      selesai,
+      belumSelesai: menunggu,
+    },
+  };
+});
 
 export const createManualTransaction = createServerFn({
   method: "POST",
 })
-  .inputValidator((data: CreateManualTransactionInput) => data)
+  .validator((data: CreateManualTransactionInput) => data)
   .handler(async ({ data }) => {
     const customerName = data.customerName.trim() || "Pelanggan Umum";
     const customerPhone = data.customerPhone?.trim() || null;
@@ -50,223 +279,221 @@ export const createManualTransaction = createServerFn({
     if (!data.capsterId) {
       throw new Error("Capster belum dipilih.");
     }
-
     if (data.serviceIds.length === 0) {
       throw new Error("Minimal pilih satu layanan.");
     }
 
-    // ==============================
-    // CEK CAPSTER
-    // ==============================
-    const capster = await db
+    // 1. Get Barbershop
+    const [shop] = await db
       .select()
-      .from(users)
+      .from(barbershop)
+      .where(eq(barbershop.status, "active"))
+      .limit(1);
+
+    if (!shop) {
+      throw new Error("Barbershop tidak ditemukan.");
+    }
+
+    // 2. Find or Create User & Pelanggan
+    let userRow;
+    if (customerPhone) {
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.no_hp, customerPhone), eq(users.role, "pelanggan")))
+        .limit(1);
+      userRow = existingUser[0];
+    }
+
+    if (!userRow) {
+      const email = `manual.${Date.now()}.${Math.floor(Math.random() * 1000)}@barberin.local`;
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email,
+          nama_lengkap: customerName,
+          no_hp: customerPhone,
+          role: "pelanggan",
+          status: "active",
+        })
+        .returning();
+      userRow = newUser;
+    }
+
+    if (!userRow) {
+      throw new Error("Gagal memproses akun pengguna.");
+    }
+
+    let [pelangganRow] = await db
+      .select()
+      .from(pelanggan)
+      .where(eq(pelanggan.id_user, userRow.id_user))
+      .limit(1);
+
+    if (!pelangganRow) {
+      [pelangganRow] = await db
+        .insert(pelanggan)
+        .values({
+          id_user: userRow.id_user,
+        })
+        .returning();
+    }
+
+    if (!pelangganRow) {
+      throw new Error("Gagal memproses data pelanggan.");
+    }
+
+    // 3. Find or Create active shift for capster
+    let [activeShift] = await db
+      .select()
+      .from(shiftCapster)
       .where(
         and(
-          eq(users.id, data.capsterId),
-          eq(users.role, "capster"),
-          eq(users.status, "active"),
+          eq(shiftCapster.id_capster, data.capsterId),
+          eq(shiftCapster.status, "ongoing"),
         ),
       )
       .limit(1);
 
-    if (!capster[0]) {
-      throw new Error("Capster tidak ditemukan atau tidak aktif.");
+    if (!activeShift) {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} WIB`;
+      [activeShift] = await db
+        .insert(shiftCapster)
+        .values({
+          id_capster: data.capsterId,
+          tanggal: now,
+          waktu_mulai: timeStr,
+          status: "ongoing",
+          total_transaksi: 0,
+          total_pendapatan: "0",
+        })
+        .returning();
     }
 
-    // ==============================
-    // CARI CUSTOMER
-    // ==============================
-    let customer;
-
-    if (customerPhone) {
-      const existingCustomer = await db
-        .select()
-        .from(users)
-        .where(
-          and(
-            eq(users.phone, customerPhone),
-            eq(users.role, "customer"),
-          ),
-        )
-        .limit(1);
-
-      customer = existingCustomer[0];
+    if (!activeShift) {
+      throw new Error("Gagal memproses shift capster.");
     }
 
-    // Kalau customer belum ada, buat customer baru
-    if (!customer) {
-      const customerId = generateId();
+    // 4. Fetch services
+    const serviceRows = await db
+      .select()
+      .from(layanan)
+      .where(inArray(layanan.id_layanan, data.serviceIds));
 
-      await db.insert(users).values({
-        id: customerId,
-        name: customerName,
-        email: `${customerId}@customer.barberin.local`,
-        phone: customerPhone,
-        role: "customer",
-        status: "active",
-      });
-
-      const createdCustomer = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, customerId))
-        .limit(1);
-
-      customer = createdCustomer[0];
+    if (serviceRows.length === 0) {
+      throw new Error("Layanan tidak ditemukan.");
     }
 
-    if (!customer) {
-      throw new Error("Customer gagal dibuat.");
-    }
-
-    // ==============================
-    // AMBIL LAYANAN DARI DATABASE
-    // ==============================
-    const selectedServices = [];
-
-    for (const serviceId of data.serviceIds) {
-      const result = await db
-        .select()
-        .from(services)
-        .where(
-          and(
-            eq(services.id, serviceId),
-            eq(services.status, "active"),
-          ),
-        )
-        .limit(1);
-
-      if (!result[0]) {
-        throw new Error(`Layanan ${serviceId} tidak ditemukan.`);
-      }
-
-      selectedServices.push(result[0]);
-    }
-
-    // ==============================
-    // HITUNG TOTAL
-    // ==============================
-    const subtotal = selectedServices.reduce(
-      (total, service) => total + Number(service.price),
-      0,
-    );
-
+    const subtotal = serviceRows.reduce((sum, s) => sum + Number(s.harga), 0);
     const discount = 0;
     const total = subtotal - discount;
+
+    if (data.paymentMethod === "tunai") {
+      const received = data.cashReceived ?? total;
+      if (received < total) {
+        throw new Error("Jumlah uang yang diterima belum mencukupi.");
+      }
+    }
 
     const cashReceived =
       data.paymentMethod === "tunai"
         ? Math.max(data.cashReceived ?? total, total)
         : total;
 
-    const changeAmount =
-      data.paymentMethod === "tunai"
-        ? Math.max(0, cashReceived - total)
-        : 0;
-
-    // ==============================
-    // ID TRANSAKSI
-    // ==============================
-    const transactionId = generateId();
-    const paymentId = generateId();
-
-    let transactionNumber = generateTransactionNumber();
-
-    // Hindari nomor transaksi duplicate
-    let existingNumber = await db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.transactionNumber, transactionNumber))
-      .limit(1);
-
-    while (existingNumber.length > 0) {
-      transactionNumber = generateTransactionNumber();
-
-      existingNumber = await db
-        .select()
-        .from(transactions)
-        .where(eq(transactions.transactionNumber, transactionNumber))
-        .limit(1);
-    }
+    const change = Math.max(0, cashReceived - total);
 
     const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
-    // ==============================
-    // INSERT TRANSAKSI
-    // ==============================
-    await db.insert(transactions).values({
-      id: transactionId,
-      transactionNumber,
-      customerId: customer.id,
-      capsterId: data.capsterId,
-      subtotal: String(subtotal),
-      discount: String(discount),
-      total: String(total),
+    // 5. Create Booking
+    const [bookingRow] = await db
+      .insert(booking)
+      .values({
+        id_pelanggan: pelangganRow.id_pelanggan,
+        id_barbershop: shop.id_barbershop,
+        id_capster: data.capsterId,
+        tanggal_booking: now,
+        waktu_booking: timeStr,
+        status: "completed",
+        catatan: notes,
+      })
+      .returning();
 
-      // Karena transaksi manual langsung dibayar
-      // kita tandai pembayaran sudah dikonfirmasi.
-      status: "COMPLETED",
+    if (!bookingRow) {
+      throw new Error("Gagal membuat data booking.");
+    }
 
-      notes,
+    // 6. Create Detail Booking
+    for (const s of serviceRows) {
+      await db.insert(detailBooking).values({
+        id_booking: bookingRow.id_booking,
+        id_layanan: s.id_layanan,
+        harga_satuan: String(s.harga),
+        qty: 1,
+        subtotal: String(s.harga),
+      });
+    }
 
-      createdAt: now,
-      updatedAt: now,
+    // 7. Create Transaksi
+    const [transaksiRow] = await db
+      .insert(transaksi)
+      .values({
+        id_booking: bookingRow.id_booking,
+        id_shift: activeShift.id_shift,
+        id_pelanggan: pelangganRow.id_pelanggan,
+        subtotal: String(subtotal),
+        diskon: String(discount),
+        total: String(total),
+        status_transaksi: "paid",
+      })
+      .returning();
+
+    if (!transaksiRow) {
+      throw new Error("Gagal membuat data transaksi.");
+    }
+
+    // 8. Create Pembayaran
+    await db.insert(pembayaran).values({
+      id_transaksi: transaksiRow.id_transaksi,
+      metode_pembayaran: data.paymentMethod,
+      jumlah_bayar: String(total),
+      status_pembayaran: "success",
+      waktu_bayar: now,
+      referensi:
+        data.paymentMethod === "tunai" ? `Tunai: ${cashReceived}` : "Non-tunai",
     });
 
-    // ==============================
-    // INSERT ITEMS
-    // ==============================
-    await db.insert(transactionItems).values(
-      selectedServices.map((service) => ({
-        id: generateId(),
-        transactionId,
-        serviceId: service.id,
-        serviceName: service.name,
-        price: String(service.price),
-        quantity: 1,
-        subtotal: String(service.price),
-      })),
-    );
-
-    // ==============================
-    // INSERT PAYMENT
-    // ==============================
-    await db.insert(payments).values({
-      id: paymentId,
-      transactionId,
-      method: data.paymentMethod,
-      amount: String(total),
-      cashReceived:
-        data.paymentMethod === "tunai"
-          ? String(cashReceived)
-          : null,
-      changeAmount:
-        data.paymentMethod === "tunai"
-          ? String(changeAmount)
-          : null,
-      status: "CONFIRMED",
-      confirmedBy: data.capsterId,
-      confirmedAt: now,
-      createdAt: now,
+    // 9. Create Struk
+    const no_struk = generateStrukNumber();
+    await db.insert(struk).values({
+      id_transaksi: transaksiRow.id_transaksi,
+      no_struk,
+      tanggal_cetak: now,
     });
+
+    // Fetch capster name
+    const [capsterUser] = await db
+      .select({ nama_lengkap: users.nama_lengkap })
+      .from(capster)
+      .innerJoin(users, eq(capster.id_user, users.id_user))
+      .where(eq(capster.id_capster, data.capsterId))
+      .limit(1);
 
     return {
       success: true,
-      transactionId,
-      transactionNumber,
-      customerId: customer.id,
-      customerName: customer.name,
+      transactionId: transaksiRow.id_transaksi,
+      noStruk: no_struk,
+      customerId: pelangganRow.id_pelanggan,
+      customerName: userRow.nama_lengkap,
       capsterId: data.capsterId,
-      capsterName: capster[0].name,
+      capsterName: capsterUser?.nama_lengkap ?? "Capster",
       subtotal,
       discount,
       total,
       paymentMethod: data.paymentMethod,
       cashReceived,
-      changeAmount,
-      serviceNames: selectedServices
-        .map((service) => service.name)
-        .join(" + "),
+      change,
+      serviceNames: serviceRows.map((s) => s.nama_layanan).join(" + "),
     };
   });

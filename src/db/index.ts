@@ -1,10 +1,13 @@
-import mysql from "mysql2/promise";
-import { drizzle } from "drizzle-orm/mysql2";
+import "dotenv/config";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-const pool = mysql.createPool(process.env.DATABASE_URL!);
+const connectionString =
+  process.env["DATABASE_URL"] ||
+  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres";
 
-export const db = drizzle(pool, {
-  schema,
-  mode: "default",
-});
+// prepare: false prevents errors when connecting via Supabase connection pooler
+const client = postgres(connectionString, { prepare: false });
+
+export const db = drizzle(client, { schema });

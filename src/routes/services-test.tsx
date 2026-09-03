@@ -23,7 +23,15 @@ function ServicesTestPage() {
   useEffect(() => {
     getServices()
       .then((data) => {
-        setServices(data);
+        setServices(
+          data.map((d) => ({
+            id: d.id,
+            name: d.name,
+            category: d.durasi_menit ? `${d.durasi_menit} Menit` : "Barbershop",
+            price: String(d.price),
+            status: d.status,
+          })),
+        );
       })
       .catch((err) => {
         console.error(err);

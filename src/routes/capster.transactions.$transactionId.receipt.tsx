@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Download, Printer, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BottomActionBar,
@@ -8,10 +8,12 @@ import {
   MobileShell,
   PrimaryButton,
   SecondaryButton,
+  SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
 import { useCapster, type CapsterTransaction } from "@/lib/capster-store";
+import { getTransactionDetail } from "@/lib/bookings";
 
 export const Route = createFileRoute("/capster/transactions/$transactionId/receipt")({
   head: () => ({
@@ -37,7 +39,7 @@ async function downloadThermalPdf(trx: CapsterTransaction) {
   doc.setFontSize(8);
   doc.text("Modern Barbershop Management System", 150, y, { align: "center" });
   y += 11;
-  doc.text("Jl. Contoh No. 123, Purbalingga • 0812-3456-7890", 150, y, { align: "center" });
+  doc.text("Jl. Jenderal Soedirman No. 123, Purbalingga • 0812-3456-7890", 150, y, { align: "center" });
 
   y += 10;
   doc.setLineDashPattern([2, 2], 0);
@@ -64,15 +66,14 @@ async function downloadThermalPdf(trx: CapsterTransaction) {
   doc.line(20, y, 280, y);
   doc.setLineDashPattern([], 0);
 
-  y += 6;
+  y += 14;
   doc.setFont("helvetica", "bold");
-  doc.text("LAYANAN", 20, y + 10);
-  doc.text("HARGA", 280, y + 10, { align: "right" });
-  y += 12;
+  doc.text("LAYANAN", 20, y);
+  doc.setFont("helvetica", "normal");
 
   trx.items.forEach((item) => {
     row(
-      `${item.service.name} ${item.quantity > 1 ? `(${item.quantity}x)` : ""}`,
+      `${item.service.name} (${item.quantity}x)`,
       formatRupiah(item.service.price * item.quantity),
     );
   });
@@ -83,10 +84,14 @@ async function downloadThermalPdf(trx: CapsterTransaction) {
   doc.setLineDashPattern([], 0);
 
   row("Subtotal", formatRupiah(trx.subtotal));
-  row("Diskon", formatRupiah(trx.discount));
-  row("Total", formatRupiah(trx.total), true);
-  row(`Bayar (${trx.paymentMethod.toUpperCase()})`, formatRupiah(trx.cashReceived ?? trx.total));
-  if (trx.paymentMethod === "tunai") {
+  if (trx.discount > 0) {
+    row("Diskon", `-${formatRupiah(trx.discount)}`);
+  }
+  row("TOTAL", formatRupiah(trx.total), true);
+  row("Metode Pembayaran", trx.paymentMethod.toUpperCase());
+
+  if (trx.paymentMethod === "tunai" && trx.cashReceived) {
+    row("Uang Diterima", formatRupiah(trx.cashReceived));
     row("Kembalian", formatRupiah(trx.change ?? 0), true);
   }
 
@@ -107,17 +112,81 @@ function CapsterReceiptPage() {
   const navigate = useNavigate();
   const { transactionId } = Route.useParams();
   const { transactions } = useCapster();
+  const storeTrx = transactions.find((t) => t.id === transactionId);
+  const [trx, setTrx] = useState<CapsterTransaction | null>(storeTrx ?? null);
+  const [loading, setLoading] = useState(!storeTrx);
   const [downloading, setDownloading] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
 
-  const trx = transactions.find((t) => t.id === transactionId);
+  useEffect(() => {
+    if (trx) return;
+    let mounted = true;
+    getTransactionDetail({ data: { transactionId } })
+      .then((detail) => {
+        if (!mounted || !detail) return;
+        const mapped: CapsterTransaction = {
+          id: detail.transactionId,
+          date: new Date(detail.createdAt).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          }),
+          time: new Date(detail.createdAt).toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          customerName: detail.customerName,
+          ...(detail.customerPhone ? { customerPhone: detail.customerPhone } : {}),
+          items: detail.items.map((i) => ({
+            service: {
+              id: i.serviceId,
+              name: i.name,
+              category: "Barbershop",
+              price: i.price,
+            },
+            quantity: i.quantity,
+          })),
+          serviceNames: detail.items.map((i) => i.name).join(" + "),
+          subtotal: detail.subtotal,
+          discount: detail.discount,
+          total: detail.total,
+          paymentMethod: detail.paymentMethod as "tunai" | "qris" | "transfer",
+          cashReceived: detail.total,
+          change: 0,
+          status: detail.status === "paid" ? "Selesai" : "Menunggu",
+          capsterId: "",
+          capsterName: detail.capsterName,
+        };
+        setTrx(mapped);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [transactionId, trx]);
+
+  if (loading) {
+    return (
+      <MobileShell>
+        <CapsterHeader title="Struk Transaksi" backTo="/capster/transactions" showBack={true} />
+        <main className="flex-1 space-y-3 p-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </main>
+      </MobileShell>
+    );
+  }
 
   if (!trx) {
     return (
       <MobileShell>
         <CapsterHeader title="Struk Transaksi" backTo="/capster/transactions" showBack={true} />
         <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-muted-foreground">Struk tidak ditemukan.</p>
+          <p className="text-muted-foreground">Struk tidak ditemukan di database.</p>
           <div className="mt-4 w-full max-w-[200px]">
             <PrimaryButton onClick={() => navigate({ to: "/capster/transactions" })}>
               Kembali ke Daftar

@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   FileText,
   Phone,
@@ -6,6 +7,7 @@ import {
   Scissors,
   User,
   Wallet,
+  CheckCircle,
 } from "lucide-react";
 
 import {
@@ -13,10 +15,16 @@ import {
   GlassCard,
   MobileShell,
   PrimaryButton,
+  SecondaryButton,
+  SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
-import { useCapster } from "@/lib/capster-store";
+import { useCapster, type CapsterTransaction } from "@/lib/capster-store";
+import {
+  confirmPaymentAndGenerateStruk,
+  getTransactionDetail,
+} from "@/lib/bookings";
 
 export const Route = createFileRoute("/capster/transactions/$transactionId")({
   head: () => ({
@@ -33,7 +41,86 @@ function CapsterTransactionDetailPage() {
   const { transactionId } = Route.useParams();
   const { transactions } = useCapster();
 
-  const trx = transactions.find((t) => t.id === transactionId);
+  const storeTrx = transactions.find((t) => t.id === transactionId);
+  const [trx, setTrx] = useState<CapsterTransaction | null>(storeTrx ?? null);
+  const [loading, setLoading] = useState(!storeTrx);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getTransactionDetail({ data: { transactionId } })
+      .then((detail) => {
+        if (!mounted || !detail) return;
+        const mapped: CapsterTransaction = {
+          id: detail.transactionId,
+          date: new Date(detail.createdAt).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          }),
+          time: new Date(detail.createdAt).toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          customerName: detail.customerName,
+          ...(detail.customerPhone ? { customerPhone: detail.customerPhone } : {}),
+          items: detail.items.map((i) => ({
+            service: {
+              id: i.serviceId,
+              name: i.name,
+              category: "Barbershop",
+              price: i.price,
+            },
+            quantity: i.quantity,
+          })),
+          serviceNames: detail.items.map((i) => i.name).join(" + "),
+          subtotal: detail.subtotal,
+          discount: detail.discount,
+          total: detail.total,
+          paymentMethod: detail.paymentMethod as "tunai" | "qris" | "transfer",
+          cashReceived: detail.total,
+          change: 0,
+          status: detail.status === "paid" ? "Selesai" : "Menunggu",
+          capsterId: "",
+          capsterName: detail.capsterName,
+        };
+        setTrx(mapped);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [transactionId]);
+
+  const handleConfirmPayment = async () => {
+    setConfirming(true);
+    try {
+      await confirmPaymentAndGenerateStruk({ data: { transactionId } });
+      if (trx) {
+        setTrx({ ...trx, status: "Selesai" });
+      }
+    } catch (err) {
+      console.error("Gagal mengonfirmasi pembayaran:", err);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <MobileShell>
+        <CapsterHeader title="Detail Transaksi" backTo="/capster/transactions" showBack={true} />
+        <main className="flex-1 space-y-3 p-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </main>
+      </MobileShell>
+    );
+  }
 
   if (!trx) {
     return (
@@ -165,17 +252,40 @@ function CapsterTransactionDetailPage() {
       </main>
 
       <BottomActionBar>
-        <PrimaryButton
-          onClick={() =>
-            navigate({
-              to: "/capster/transactions/$transactionId/receipt",
-              params: { transactionId: trx.id },
-            })
-          }
-        >
-          <Receipt className="h-4 w-4" strokeWidth={2} />
-          LIHAT STRUK
-        </PrimaryButton>
+        {trx.status === "Menunggu" ? (
+          <div className="flex flex-col gap-2 w-full">
+            <PrimaryButton
+              loading={confirming}
+              onClick={handleConfirmPayment}
+            >
+              <CheckCircle className="h-4 w-4" strokeWidth={2} />
+              KONFIRMASI PEMBAYARAN
+            </PrimaryButton>
+            <SecondaryButton
+              onClick={() =>
+                navigate({
+                  to: "/capster/transactions/$transactionId/receipt",
+                  params: { transactionId: trx.id },
+                })
+              }
+            >
+              <Receipt className="h-4 w-4" strokeWidth={2} />
+              LIHAT STRUK
+            </SecondaryButton>
+          </div>
+        ) : (
+          <PrimaryButton
+            onClick={() =>
+              navigate({
+                to: "/capster/transactions/$transactionId/receipt",
+                params: { transactionId: trx.id },
+              })
+            }
+          >
+            <Receipt className="h-4 w-4" strokeWidth={2} />
+            LIHAT STRUK
+          </PrimaryButton>
+        )}
       </BottomActionBar>
     </MobileShell>
   );

@@ -47,7 +47,14 @@ function ManualSelectServicesPage() {
   useEffect(() => {
     getServices()
       .then((data) => {
-        setServices(data as Service[]);
+        const mapped: Service[] = data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          category: d.durasi_menit ? `${d.durasi_menit} Menit` : "Barbershop",
+          price: String(d.price),
+          status: d.status,
+        }));
+        setServices(mapped);
       })
       .catch((err) => {
         console.error(err);

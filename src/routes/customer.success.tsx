@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Receipt } from "lucide-react";
 
 import {
@@ -10,11 +11,13 @@ import {
   MobileShell,
   PrimaryButton,
   SecondaryButton,
+  SkeletonCard,
   StatusBadge,
   SuccessState,
 } from "@/components/barberin/ui";
 import { formatRupiah } from "@/lib/format";
-import { paymentMethodName, useBarberin } from "@/lib/barberin-store";
+import { paymentMethodName, useBarberin, type ReceiptData, type PaymentMethodId } from "@/lib/barberin-store";
+import { getTransactionDetail } from "@/lib/bookings";
 
 export const Route = createFileRoute("/customer/success")({
   head: () => ({
@@ -30,7 +33,52 @@ export const Route = createFileRoute("/customer/success")({
 
 function SuccessPage() {
   const navigate = useNavigate();
-  const { receiptData } = useBarberin();
+  const { receiptData: storeReceipt, transactionId } = useBarberin();
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(storeReceipt ?? null);
+  const [loading, setLoading] = useState(!storeReceipt && !!transactionId);
+
+  useEffect(() => {
+    if (receiptData || !transactionId) return;
+    let mounted = true;
+    getTransactionDetail({ data: { transactionId } })
+      .then((d) => {
+        if (!mounted || !d) return;
+        setReceiptData({
+          transactionId: d.transactionId,
+          customerId: d.customerId,
+          customerName: d.customerName,
+          createdAt: d.createdAt,
+          items: d.items.map((i) => ({
+            service: { id: i.serviceId, name: i.name, description: "", price: i.price },
+            quantity: i.quantity,
+          })),
+          total: d.total,
+          paymentMethod: d.paymentMethod as PaymentMethodId,
+          capster: d.capsterName
+            ? { id: "cap", name: d.capsterName, role: d.capsterRole, status: "AVAILABLE" }
+            : null,
+          status: "Berhasil",
+        });
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [receiptData, transactionId]);
+
+  if (loading) {
+    return (
+      <MobileShell>
+        <CustomerHeader title="Transaksi" showBack={false} />
+        <main className="flex-1 space-y-3 p-4">
+          <SkeletonCard />
+        </main>
+      </MobileShell>
+    );
+  }
 
   if (!receiptData) {
     return (

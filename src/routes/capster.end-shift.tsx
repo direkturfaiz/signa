@@ -12,6 +12,7 @@ import {
 import { CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
 import { capsterActions, useCapster } from "@/lib/capster-store";
+import { endShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/end-shift")({
   head: () => ({
@@ -25,16 +26,21 @@ export const Route = createFileRoute("/capster/end-shift")({
 
 function EndShiftPage() {
   const navigate = useNavigate();
-  const { dashboardMetrics, capsterName, shiftInfo } = useCapster();
+  const { dashboardMetrics, capsterName, shiftInfo, shiftId } = useCapster();
   const [ending, setEnding] = useState(false);
 
-  const handleEndShift = () => {
+  const handleEndShift = async () => {
     setEnding(true);
-    setTimeout(() => {
-      capsterActions.endShift();
-      setEnding(false);
-      navigate({ to: "/capster/shift-saved" });
-    }, 600);
+    if (shiftId) {
+      try {
+        await endShift({ data: { shiftId } });
+      } catch (err) {
+        console.error("Gagal mengakhiri shift di database:", err);
+      }
+    }
+    capsterActions.endShift();
+    setEnding(false);
+    navigate({ to: "/capster/shift-saved" });
   };
 
   return (

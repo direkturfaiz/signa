@@ -193,7 +193,7 @@ export const actions = {
       ),
     });
   },
-  setCapster(capster: Capster) {
+  setCapster(capster: Capster | null) {
     setState({ selectedCapster: capster });
   },
   setCustomer(name: string, customerId: string) {

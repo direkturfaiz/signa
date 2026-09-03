@@ -1,19 +1,29 @@
 import { createServerFn } from "@tanstack/react-start";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { services } from "@/db/schema";
+import { layanan } from "@/db/schema";
 
 export const getServices = createServerFn({
   method: "GET",
 }).handler(async () => {
   const result = await db
     .select({
-      id: services.id,
-      name: services.name,
-      category: services.category,
-      price: services.price,
-      status: services.status,
+      id: layanan.id_layanan,
+      id_layanan: layanan.id_layanan,
+      name: layanan.nama_layanan,
+      nama_layanan: layanan.nama_layanan,
+      description: layanan.deskripsi,
+      deskripsi: layanan.deskripsi,
+      durasi_menit: layanan.durasi_menit,
+      price: layanan.harga,
+      harga: layanan.harga,
+      status: layanan.status,
     })
-    .from(services);
+    .from(layanan)
+    .where(eq(layanan.status, "active"));
 
-  return result;
+  return result.map((s) => ({
+    ...s,
+    price: Number(s.price),
+  }));
 });

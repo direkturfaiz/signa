@@ -93,6 +93,9 @@ export type ManualTransactionDraft = {
 
 export type CapsterState = {
   isLoggedIn: boolean;
+  capsterId: string | null;
+  barbershopId: string | null;
+  shiftId: string | null;
   capsterName: string;
   capsterRole: string;
   shiftInfo: ShiftInfo;
@@ -218,6 +221,9 @@ const INITIAL_TRANSACTIONS: CapsterTransaction[] = [
 
 const initialCapsterState: CapsterState = {
   isLoggedIn: true,
+  capsterId: "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
+  barbershopId: "d6c11b82-69d4-4778-9990-a0a18e436336",
+  shiftId: "7d271050-f2b0-4851-aca0-d0fa3f548874",
   capsterName: "Budi",
   capsterRole: "Senior Barber",
   shiftInfo: {
@@ -225,17 +231,17 @@ const initialCapsterState: CapsterState = {
     day: "Kamis",
     startTime: "08:00 WIB",
     endTime: "17:00 WIB",
-    isCheckedIn: false,
-    checkedInAt: null,
+    isCheckedIn: true,
+    checkedInAt: "08:00 WIB",
     hasOtherCheckedIn: false,
     isShiftEnded: false,
   },
   dashboardMetrics: INITIAL_METRICS,
   transactions: INITIAL_TRANSACTIONS,
   manualDraft: {
-    capsterId: null,
-    capsterName: "",
-    capsterRole: "",
+    capsterId: "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
+    capsterName: "Budi",
+    capsterRole: "Senior Barber",
     selectedServiceIds: [],
     customerName: "",
     customerPhone: "",
@@ -295,22 +301,69 @@ export function useCapster(): CapsterState {
 }
 
 export const capsterActions = {
-  login(name = "Budi") {
-    setState({ isLoggedIn: true, capsterName: name });
+  login(payload: string | { id?: string; name: string; role?: string; barbershopId?: string; shiftId?: string }) {
+    if (typeof payload === "string") {
+      setState({ isLoggedIn: true, capsterName: payload });
+    } else {
+      setState({
+        isLoggedIn: true,
+        capsterName: payload.name,
+        capsterRole: payload.role ?? state.capsterRole,
+        capsterId: payload.id ?? state.capsterId,
+        barbershopId: payload.barbershopId ?? state.barbershopId,
+        shiftId: payload.shiftId ?? state.shiftId,
+      });
+    }
   },
 
   logout() {
     setState({ isLoggedIn: false });
   },
 
-  checkIn() {
+  setDashboardMetrics(metrics: DashboardMetrics) {
+    setState({ dashboardMetrics: metrics });
+  },
+
+  setTransactions(transactions: CapsterTransaction[]) {
+    setState({ transactions });
+  },
+
+  setShiftId(shiftId: string | null) {
+    setState({ shiftId });
+  },
+
+  checkIn(shiftId?: string) {
     setState({
+      shiftId: shiftId ?? state.shiftId,
       shiftInfo: {
         ...state.shiftInfo,
         isCheckedIn: true,
         checkedInAt:
           new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
         isShiftEnded: false,
+      },
+    });
+  },
+
+  endShift() {
+    setState({
+      shiftId: null,
+      shiftInfo: {
+        ...state.shiftInfo,
+        isCheckedIn: false,
+        isShiftEnded: true,
+      },
+    });
+  },
+
+  resetDailyData() {
+    setState({
+      shiftId: null,
+      shiftInfo: {
+        ...state.shiftInfo,
+        isCheckedIn: false,
+        isShiftEnded: false,
+        checkedInAt: null,
       },
     });
   },
@@ -381,6 +434,13 @@ export const capsterActions = {
         ...state.manualDraft,
         cashReceived: amount,
       },
+    });
+  },
+
+  setLastCreatedTransaction(trx: CapsterTransaction) {
+    setState({
+      lastCreatedTransaction: trx,
+      transactions: [trx, ...state.transactions.filter((t) => t.id !== trx.id)],
     });
   },
 
@@ -489,62 +549,5 @@ export const capsterActions = {
     });
 
     return newTrx;
-  },
-
-  endShift() {
-    setState({
-      shiftInfo: {
-        ...state.shiftInfo,
-        isShiftEnded: true,
-      },
-    });
-  },
-
-  resetDailyData() {
-    setState({
-      shiftInfo: {
-        ...state.shiftInfo,
-        isCheckedIn: false,
-        checkedInAt: null,
-        isShiftEnded: false,
-      },
-      dashboardMetrics: {
-        totalTransaksi: 0,
-        deltaTransaksi: "- dari kemarin",
-        totalPendapatan: 0,
-        deltaPendapatan: "- dari kemarin",
-        totalLayanan: 0,
-        deltaLayanan: "- dari kemarin",
-        capsterAktif: 1,
-        deltaCapster: "Aktif",
-        statusLayanan: {
-          selesai: 0,
-          sedangDikerjakan: 0,
-          menunggu: 0,
-          dibatalkan: 0,
-        },
-        ringkasanHariIni: {
-          totalPendapatan: 0,
-          totalTransaksi: 0,
-          totalLayanan: 0,
-          selesai: 0,
-          belumSelesai: 0,
-        },
-      },
-      transactions: [],
-      manualDraft: {
-        capsterId: null,
-        capsterName: "",
-        capsterRole: "",
-        selectedServiceIds: [],
-        customerName: "",
-        customerPhone: "",
-        notes: "",
-        paymentMethod: "tunai",
-        cashReceived: 0,
-        status: "DRAFT",
-      },
-      lastCreatedTransaction: null,
-    });
   },
 };

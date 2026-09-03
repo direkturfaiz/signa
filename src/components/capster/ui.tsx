@@ -101,13 +101,12 @@ export function CapsterHeader({
 export function CapsterBottomNav({
   activeTab,
 }: {
-  activeTab: "dashboard" | "transactions" | "services" | "account";
+  activeTab?: "dashboard" | "transactions" | "services" | "account";
 }) {
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: Grid, to: "/capster/dashboard" },
     { id: "transactions", label: "Transaksi", icon: ListOrdered, to: "/capster/transactions" },
     { id: "services", label: "Layanan", icon: Scissors, to: "/capster/services" },
-    { id: "account", label: "Akun", icon: User, to: "/capster/account" },
   ] as const;
 
   return (
@@ -115,7 +114,7 @@ export function CapsterBottomNav({
       aria-label="Navigasi Capster"
       className="glass-3 safe-bottom sticky bottom-0 z-20 mt-auto border-x-0 border-b-0 px-3 pt-2 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]"
     >
-      <div className="grid grid-cols-4 items-center">
+      <div className="grid grid-cols-3 items-center">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;

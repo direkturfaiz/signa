@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Info, LogIn } from "lucide-react";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 import {
   BottomActionBar,
   GlassCard,
@@ -14,6 +13,7 @@ import {
   ShiftInfoCard,
 } from "@/components/capster/ui";
 import { capsterActions, useCapster } from "@/lib/capster-store";
+import { checkInShift, getActiveShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/check-in")({
   head: () => ({
@@ -27,20 +27,45 @@ export const Route = createFileRoute("/capster/check-in")({
 
 function CheckInPage() {
   const navigate = useNavigate();
-  const { shiftInfo } = useCapster();
+  const { shiftInfo, capsterId, capsterName } = useCapster();
   const [checking, setChecking] = useState(false);
 
-  const handleCheckIn = () => {
+  useEffect(() => {
+    getActiveShift({
+      data: {
+        ...(capsterId ? { capsterId } : {}),
+        capsterName,
+      },
+    })
+      .then((active) => {
+        if (active) {
+          capsterActions.checkIn(active.id_shift);
+        }
+      })
+      .catch((e) => console.error(e));
+  }, [capsterId, capsterName]);
+
+  const handleCheckIn = async () => {
     if (shiftInfo.isCheckedIn) {
       navigate({ to: "/capster/dashboard" });
       return;
     }
     setChecking(true);
-    setTimeout(() => {
+    try {
+      const active = await checkInShift({
+        data: { capsterId: capsterId ?? "4bac18cd-d0c8-4933-a24b-2eacf56294ac" },
+      });
+      if (active) {
+        capsterActions.checkIn(active.id_shift);
+      }
+      setChecking(false);
+      navigate({ to: "/capster/dashboard" });
+    } catch (err) {
+      console.error(err);
       capsterActions.checkIn();
       setChecking(false);
       navigate({ to: "/capster/dashboard" });
-    }, 600);
+    }
   };
 
   return (

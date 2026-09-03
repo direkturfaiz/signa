@@ -12,9 +12,18 @@ import {
   SkeletonCard,
 } from "@/components/barberin/ui";
 import { formatRupiah } from "@/lib/format";
-import { SERVICES, actions, cartCount, cartTotal, useBarberin } from "@/lib/barberin-store";
+import { actions, cartCount, cartTotal, useBarberin, type Service } from "@/lib/barberin-store";
+import { getServices } from "@/lib/services";
 
 export const Route = createFileRoute("/customer/services")({
+  loader: async () => {
+    try {
+      return await getServices();
+    } catch (e) {
+      console.error("Loader error getServices:", e);
+      return [];
+    }
+  },
   head: () => ({
     meta: [
       { title: "Pilih Layanan — BARBERIN" },
@@ -35,14 +44,54 @@ export const Route = createFileRoute("/customer/services")({
 
 function ServicesPage() {
   const navigate = useNavigate();
+  const loaderData = Route.useLoaderData();
   const { cartItems } = useBarberin();
-  const [loading, setLoading] = useState(true);
-  const [error] = useState<string | null>(null);
+  const [serviceList, setServiceList] = useState<Service[]>(() => {
+    if (loaderData && loaderData.length > 0) {
+      return loaderData.map((d) => ({
+        id: d.id,
+        name: d.name,
+        description: d.description ?? "",
+        price: Number(d.price),
+      }));
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(serviceList.length === 0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
+    if (serviceList.length > 0) {
+      setLoading(false);
+      return;
+    }
+    let mounted = true;
+    getServices()
+      .then((data) => {
+        if (!mounted) return;
+        const mapped: Service[] = data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description ?? "",
+          price: Number(d.price),
+        }));
+        setServiceList(mapped);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Gagal mengambil layanan:", err);
+        if (mounted) {
+          setError("Gagal memuat layanan. Silakan coba lagi.");
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [serviceList.length]);
 
   const total = cartTotal(cartItems);
   const count = cartCount(cartItems);
@@ -75,7 +124,7 @@ function ServicesPage() {
             <SkeletonCard />
           </>
         ) : (
-          SERVICES.map((service) => {
+          serviceList.map((service) => {
             const selected = cartItems.some((i) => i.service.id === service.id);
             return (
               <GlassCard key={service.id} selected={selected}>

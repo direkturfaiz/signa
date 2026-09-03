@@ -9,6 +9,7 @@ import {
   PrimaryButton,
 } from "@/components/barberin/ui";
 import { capsterActions } from "@/lib/capster-store";
+import { loginCapster } from "@/lib/capsters";
 
 export const Route = createFileRoute("/capster/login")({
   head: () => ({
@@ -22,20 +23,41 @@ export const Route = createFileRoute("/capster/login")({
 
 function CapsterLoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("ricky.capster");
+  const [username, setUsername] = useState("budi@barberin.test");
   const [password, setPassword] = useState("••••••••");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      capsterActions.login(username.split(".")[0] ?? "Ricky Pratama");
+    try {
+      const res = await loginCapster({
+        data: { emailOrName: username },
+      });
+      capsterActions.login({
+        id: res.id_capster,
+        name: res.nama_lengkap,
+        role: res.role,
+        barbershopId: res.id_barbershop,
+      });
       setLoading(false);
       navigate({ to: "/capster/check-in" });
-    }, 600);
+    } catch (err) {
+      console.error(err);
+      const isAndi =
+        username.toLowerCase().includes("andi") || username.includes("002");
+      capsterActions.login({
+        id: isAndi
+          ? "8b020274-d637-4d0f-b454-b8d387338865"
+          : "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
+        name: isAndi ? "Andi" : "Budi",
+        role: isAndi ? "Barber" : "Senior Barber",
+      });
+      setLoading(false);
+      navigate({ to: "/capster/check-in" });
+    }
   };
 
   return (
@@ -59,9 +81,42 @@ function CapsterLoginPage() {
         <GlassCard className="p-5">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="username" className="block text-[13px] font-semibold text-foreground">
-                Email / Username
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="username" className="block text-[13px] font-semibold text-foreground">
+                  Email / Username
+                </label>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-muted-foreground">Pilih Cepat:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername("andi@barberin.test");
+                      setPassword("password");
+                    }}
+                    className={`rounded px-2 py-0.5 font-semibold transition-all ${
+                      username.toLowerCase().includes("andi")
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-white/10 text-muted-foreground hover:text-foreground hover:bg-white/15"
+                    }`}
+                  >
+                    Andi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername("budi@barberin.test");
+                      setPassword("password");
+                    }}
+                    className={`rounded px-2 py-0.5 font-semibold transition-all ${
+                      username.toLowerCase().includes("budi")
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-white/10 text-muted-foreground hover:text-foreground hover:bg-white/15"
+                    }`}
+                  >
+                    Budi
+                  </button>
+                </div>
+              </div>
               <div className="relative flex items-center">
                 <span className="absolute left-3.5 text-muted-foreground">
                   <User className="h-4 w-4" strokeWidth={2} />
@@ -72,7 +127,7 @@ function CapsterLoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Masukkan email / username"
+                  placeholder="Masukkan email / username (contoh: andi@barberin.test)"
                   className="min-h-[48px] w-full rounded-[12px] border border-white/16 bg-white/8 pl-10 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary-soft"
                 />
               </div>

@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Download, Share2 } from "lucide-react";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 import {
   BarberinLogo,
   BottomActionBar,
@@ -12,10 +11,12 @@ import {
   MobileShell,
   PrimaryButton,
   SecondaryButton,
+  SkeletonCard,
   StatusBadge,
 } from "@/components/barberin/ui";
 import { formatRupiah, formatTanggal, formatWaktu } from "@/lib/format";
-import { paymentMethodName, useBarberin, type ReceiptData } from "@/lib/barberin-store";
+import { paymentMethodName, useBarberin, type ReceiptData, type PaymentMethodId } from "@/lib/barberin-store";
+import { getTransactionDetail } from "@/lib/bookings";
 
 export const Route = createFileRoute("/customer/receipt/$transactionId")({
   head: () => ({
@@ -88,17 +89,79 @@ async function generatePdf(receipt: ReceiptData) {
 function ReceiptPage() {
   const navigate = useNavigate();
   const { transactionId } = Route.useParams();
-  const { receiptData } = useBarberin();
+  const { receiptData: storeReceipt } = useBarberin();
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(
+    storeReceipt && storeReceipt.transactionId === transactionId ? storeReceipt : null
+  );
+  const [loading, setLoading] = useState(!receiptData);
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [shareMessage, setShareMessage] = useState<string | null>(null);
 
-  if (!receiptData || receiptData.transactionId !== transactionId) {
+  useEffect(() => {
+    if (receiptData) return;
+    let mounted = true;
+    getTransactionDetail({ data: { transactionId } })
+      .then((detail) => {
+        if (!mounted || !detail) return;
+        const mapped: ReceiptData = {
+          transactionId: detail.transactionId,
+          customerId: detail.customerId,
+          customerName: detail.customerName,
+          createdAt: detail.createdAt,
+          items: detail.items.map((i) => ({
+            service: {
+              id: i.serviceId,
+              name: i.name,
+              description: "",
+              price: i.price,
+            },
+            quantity: i.quantity,
+          })),
+          total: detail.total,
+          paymentMethod: detail.paymentMethod as PaymentMethodId,
+          capster: detail.capsterName
+            ? {
+                id: "cap",
+                name: detail.capsterName,
+                role: detail.capsterRole,
+                status: "AVAILABLE",
+              }
+            : null,
+          status: "Berhasil",
+        };
+        setReceiptData(mapped);
+      })
+      .catch((err) => {
+        console.error("Gagal mengambil data struk:", err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [transactionId, receiptData]);
+
+  if (loading) {
+    return (
+      <MobileShell>
+        <CustomerHeader title="Struk Transaksi" backTo="/customer/services" />
+        <main className="flex-1 space-y-3 px-4 pb-6 pt-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </main>
+      </MobileShell>
+    );
+  }
+
+  if (!receiptData) {
     return (
       <MobileShell>
         <CustomerHeader title="Struk Transaksi" backTo="/customer/services" />
         <ErrorState
           title="Struk tidak ditemukan"
-          message="Transaksi tidak tersedia. Silakan mulai transaksi baru."
+          message="Transaksi tidak tersedia di database. Silakan mulai transaksi baru."
           action={
             <PrimaryButton onClick={() => navigate({ to: "/customer/services" })}>
               Kembali ke Home

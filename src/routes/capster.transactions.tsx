@@ -1,19 +1,22 @@
-import {
-  createFileRoute,
-  Outlet,
-  useLocation,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { useState } from "react";
-
-import { MobileShell, PrimaryButton } from "@/components/barberin/ui";
+import {
+  MobileShell,
+  PrimaryButton,
+  SkeletonCard,
+} from "@/components/barberin/ui";
 import {
   CapsterBottomNav,
   CapsterHeader,
   CapsterTransactionCard,
 } from "@/components/capster/ui";
-import { capsterActions, useCapster } from "@/lib/capster-store";
+import {
+  capsterActions,
+  useCapster,
+  type CapsterTransaction,
+} from "@/lib/capster-store";
+import { getCapsterTransactions } from "@/lib/capster-transactions";
 
 export const Route = createFileRoute("/capster/transactions")({
   head: () => ({
@@ -32,11 +35,30 @@ function CapsterTransactionsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { transactions } = useCapster();
+  const [loading, setLoading] = useState(false);
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<
-    "Semua" | "Selesai" | "Batal"
+    "Semua" | "Selesai" | "Menunggu" | "Batal"
   >("Semua");
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    getCapsterTransactions()
+      .then((data) => {
+        if (!mounted) return;
+        capsterActions.setTransactions(data as CapsterTransaction[]);
+      })
+      .catch((err) => console.error("Gagal memuat transaksi:", err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (location.pathname !== "/capster/transactions") {
     return <Outlet />;
@@ -63,7 +85,7 @@ function CapsterTransactionsPage() {
         showActions={true}
       />
 
-      <main className="flex-1 space-y-4 px-4 pb-24 pt-3">
+      <main className="flex-1 space-y-4 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+160px)] pt-3">
         {/* Search Bar */}
         <div className="relative flex items-center">
           <span className="absolute left-3.5 text-muted-foreground">
@@ -132,26 +154,30 @@ function CapsterTransactionsPage() {
         </div>
       </main>
 
-      {/* Floating CTA Button '+ BUAT TRANSAKSI' */}
-      <div className="pointer-events-none fixed bottom-16 left-0 right-0 z-30 mx-auto max-w-[430px] px-4">
-        <div className="pointer-events-auto shadow-2xl">
+      {/* BOTTOM CONTAINER (Satu Kesatuan: Tombol Buat Transaksi + Bottom Navigation) */}
+      <div className="sticky bottom-0 z-20 mt-auto w-full pointer-events-none">
+        {/* Area Tombol Buat Transaksi */}
+        <div className="px-4 pb-2.5 pointer-events-auto">
           <PrimaryButton
-  onClick={() => {
-    capsterActions.initManualDraft();
+            onClick={() => {
+              capsterActions.initManualDraft();
 
-    navigate({
-      to: "/capster/transactions/manual/services",
-    });
-  }}
-  className="shadow-[0_8px_24px_rgba(78,120,255,0.45)]"
->
-  <Plus className="h-5 w-5" strokeWidth={2.5} />
-  + BUAT TRANSAKSI
-</PrimaryButton>
+              navigate({
+                to: "/capster/transactions/manual/services",
+              });
+            }}
+            className="shadow-[0_8px_24px_rgba(78,120,255,0.45)]"
+          >
+            <Plus className="h-5 w-5" strokeWidth={2.5} />
+            + BUAT TRANSAKSI
+          </PrimaryButton>
+        </div>
+
+        {/* Existing Bottom Navigation */}
+        <div className="pointer-events-auto">
+          <CapsterBottomNav activeTab="transactions" />
         </div>
       </div>
-
-      <CapsterBottomNav activeTab="transactions" />
     </MobileShell>
   );
 }

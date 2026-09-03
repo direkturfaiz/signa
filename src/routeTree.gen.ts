@@ -24,6 +24,7 @@ import { Route as CustomerCapsterRouteImport } from './routes/customer.capster'
 import { Route as CustomerCartRouteImport } from './routes/customer.cart'
 import { Route as CustomerCompletedRouteImport } from './routes/customer.completed'
 import { Route as CustomerCustomerInfoRouteImport } from './routes/customer.customer-info'
+import { Route as CustomerHistoryRouteImport } from './routes/customer.history'
 import { Route as CustomerPaymentRouteImport } from './routes/customer.payment'
 import { Route as CustomerPaymentConfirmationRouteImport } from './routes/customer.payment-confirmation'
 import { Route as CustomerServiceExecutionRouteImport } from './routes/customer.service-execution'
@@ -113,6 +114,11 @@ const CustomerCompletedRoute = CustomerCompletedRouteImport.update({
 const CustomerCustomerInfoRoute = CustomerCustomerInfoRouteImport.update({
   id: '/customer/customer-info',
   path: '/customer/customer-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerHistoryRoute = CustomerHistoryRouteImport.update({
+  id: '/customer/history',
+  path: '/customer/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomerPaymentRoute = CustomerPaymentRouteImport.update({
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/customer/cart': typeof CustomerCartRoute
   '/customer/completed': typeof CustomerCompletedRoute
   '/customer/customer-info': typeof CustomerCustomerInfoRoute
+  '/customer/history': typeof CustomerHistoryRoute
   '/customer/payment': typeof CustomerPaymentRoute
   '/customer/payment-confirmation': typeof CustomerPaymentConfirmationRoute
   '/customer/service-execution': typeof CustomerServiceExecutionRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/customer/cart': typeof CustomerCartRoute
   '/customer/completed': typeof CustomerCompletedRoute
   '/customer/customer-info': typeof CustomerCustomerInfoRoute
+  '/customer/history': typeof CustomerHistoryRoute
   '/customer/payment': typeof CustomerPaymentRoute
   '/customer/payment-confirmation': typeof CustomerPaymentConfirmationRoute
   '/customer/service-execution': typeof CustomerServiceExecutionRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/customer/cart': typeof CustomerCartRoute
   '/customer/completed': typeof CustomerCompletedRoute
   '/customer/customer-info': typeof CustomerCustomerInfoRoute
+  '/customer/history': typeof CustomerHistoryRoute
   '/customer/payment': typeof CustomerPaymentRoute
   '/customer/payment-confirmation': typeof CustomerPaymentConfirmationRoute
   '/customer/service-execution': typeof CustomerServiceExecutionRoute
@@ -318,6 +327,7 @@ export interface FileRouteTypes {
     | '/customer/cart'
     | '/customer/completed'
     | '/customer/customer-info'
+    | '/customer/history'
     | '/customer/payment'
     | '/customer/payment-confirmation'
     | '/customer/service-execution'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/customer/cart'
     | '/customer/completed'
     | '/customer/customer-info'
+    | '/customer/history'
     | '/customer/payment'
     | '/customer/payment-confirmation'
     | '/customer/service-execution'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/customer/cart'
     | '/customer/completed'
     | '/customer/customer-info'
+    | '/customer/history'
     | '/customer/payment'
     | '/customer/payment-confirmation'
     | '/customer/service-execution'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   CustomerCartRoute: typeof CustomerCartRoute
   CustomerCompletedRoute: typeof CustomerCompletedRoute
   CustomerCustomerInfoRoute: typeof CustomerCustomerInfoRoute
+  CustomerHistoryRoute: typeof CustomerHistoryRoute
   CustomerPaymentRoute: typeof CustomerPaymentRoute
   CustomerPaymentConfirmationRoute: typeof CustomerPaymentConfirmationRoute
   CustomerServiceExecutionRoute: typeof CustomerServiceExecutionRoute
@@ -528,6 +541,13 @@ declare module '@tanstack/react-router' {
       path: '/customer/customer-info'
       fullPath: '/customer/customer-info'
       preLoaderRoute: typeof CustomerCustomerInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer/history': {
+      id: '/customer/history'
+      path: '/customer/history'
+      fullPath: '/customer/history'
+      preLoaderRoute: typeof CustomerHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customer/payment': {
@@ -710,6 +730,7 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerCartRoute: CustomerCartRoute,
   CustomerCompletedRoute: CustomerCompletedRoute,
   CustomerCustomerInfoRoute: CustomerCustomerInfoRoute,
+  CustomerHistoryRoute: CustomerHistoryRoute,
   CustomerPaymentRoute: CustomerPaymentRoute,
   CustomerPaymentConfirmationRoute: CustomerPaymentConfirmationRoute,
   CustomerServiceExecutionRoute: CustomerServiceExecutionRoute,

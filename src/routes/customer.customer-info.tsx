@@ -9,7 +9,8 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { actions, generateCustomerId, useBarberin } from "@/lib/barberin-store";
+import { actions, useBarberin } from "@/lib/barberin-store";
+import { getOrCreateCustomer } from "@/lib/bookings";
 
 export const Route = createFileRoute("/customer/customer-info")({
   head: () => ({
@@ -33,7 +34,7 @@ function CustomerInfoPage() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
       setError("Nama pelanggan wajib diisi.");
@@ -41,11 +42,18 @@ function CustomerInfoPage() {
     }
     setError(null);
     setCreating(true);
-    setTimeout(() => {
-      actions.setCustomer(trimmed, customerId ?? generateCustomerId());
+    try {
+      const res = await getOrCreateCustomer({
+        data: { name: trimmed },
+      });
+      actions.setCustomer(res.name, res.customerId);
       setCreating(false);
       navigate({ to: "/customer/payment" });
-    }, 700);
+    } catch (err) {
+      console.error("Gagal membuat data pelanggan:", err);
+      setError("Terjadi kesalahan saat memproses data pelanggan. Silakan coba lagi.");
+      setCreating(false);
+    }
   };
 
   return (

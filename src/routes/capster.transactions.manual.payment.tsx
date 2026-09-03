@@ -94,27 +94,55 @@ function ManualPaymentConfirmationPage() {
       );
 
       // ==============================
-      // SIMPAN TRANSAKSI KE MYSQL
+      // SIMPAN TRANSAKSI KE DATABASE
       // ==============================
       const result = await createManualTransaction({
-        customerName: manualDraft.customerName,
-        customerPhone: manualDraft.customerPhone,
-        notes: manualDraft.notes,
-        capsterId: manualDraft.capsterId,
-        serviceIds: manualDraft.selectedServiceIds,
-        paymentMethod,
-        cashReceived:
-          paymentMethod === "tunai" ? cashReceived : total,
+        data: {
+          customerName: manualDraft.customerName,
+          customerPhone: manualDraft.customerPhone,
+          notes: manualDraft.notes,
+          capsterId: manualDraft.capsterId,
+          serviceIds: manualDraft.selectedServiceIds,
+          paymentMethod,
+          cashReceived:
+            paymentMethod === "tunai" ? cashReceived : total,
+        },
       });
 
       console.log("Transaksi berhasil dibuat:", result);
 
+      capsterActions.setLastCreatedTransaction({
+        id: result.transactionId,
+        date: new Date().toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        }),
+        time: new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        customerName: result.customerName,
+        customerPhone: manualDraft.customerPhone,
+        items: selectedServices.map((s) => ({
+          service: s,
+          quantity: 1,
+        })),
+        serviceNames: result.serviceNames,
+        subtotal: result.subtotal,
+        discount: result.discount,
+        total: result.total,
+        paymentMethod: result.paymentMethod,
+        cashReceived: result.cashReceived,
+        change: result.change,
+        status: "Selesai",
+        capsterId: result.capsterId,
+        capsterName: result.capsterName,
+      });
+
       // Hapus draft lokal setelah berhasil
       capsterActions.clearManualDraft();
 
-      // Simpan informasi transaksi terakhir agar
-      // halaman success yang masih memakai store
-      // tetap bisa menampilkan data sementara.
       navigate({
         to: "/capster/transactions/success",
       });

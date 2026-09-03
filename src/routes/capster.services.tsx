@@ -1,11 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Info, Scissors, Search, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { GlassCard, MobileShell } from "@/components/barberin/ui";
+import { GlassCard, MobileShell, SkeletonCard } from "@/components/barberin/ui";
 import { CapsterBottomNav, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
-import { CAPSTER_SERVICES } from "@/lib/capster-store";
+import { getServices } from "@/lib/services";
+
+type CapsterServiceItem = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  durasi_menit?: number | null;
+  price: number;
+  status: string;
+};
 
 export const Route = createFileRoute("/capster/services")({
   head: () => ({
@@ -19,8 +29,36 @@ export const Route = createFileRoute("/capster/services")({
 
 function CapsterServicesPage() {
   const [search, setSearch] = useState("");
+  const [services, setServices] = useState<CapsterServiceItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = CAPSTER_SERVICES.filter((s) =>
+  useEffect(() => {
+    let mounted = true;
+    getServices()
+      .then((data) => {
+        if (!mounted) return;
+        const mapped: CapsterServiceItem[] = data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description ?? "",
+          category: d.durasi_menit ? `${d.durasi_menit} Menit` : "Barbershop",
+          durasi_menit: d.durasi_menit,
+          price: Number(d.price),
+          status: d.status,
+        }));
+        setServices(mapped);
+      })
+      .catch((err) => console.error("Gagal memuat layanan:", err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = services.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     s.category.toLowerCase().includes(search.toLowerCase())
   );

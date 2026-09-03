@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Clock, ShieldCheck } from "lucide-react";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 import {
   BottomActionBar,
   CustomerHeader,
@@ -12,6 +11,7 @@ import {
 } from "@/components/barberin/ui";
 import { formatRupiah } from "@/lib/format";
 import { actions, cartTotal, paymentMethodName, useBarberin } from "@/lib/barberin-store";
+import { confirmPaymentAndGenerateStruk, getTransactionDetail } from "@/lib/bookings";
 
 export const Route = createFileRoute("/customer/payment-confirmation")({
   head: () => ({
@@ -34,13 +34,47 @@ function PaymentConfirmationPage() {
   const [confirming, setConfirming] = useState(false);
   const total = cartTotal(cartItems);
 
-  const simulate = () => {
+  // Poll for Capster confirmation in background
+  useEffect(() => {
+    if (!transactionId) return;
+    let mounted = true;
+    const poll = async () => {
+      try {
+        const detail = await getTransactionDetail({ data: { transactionId } });
+        if (!mounted || !detail) return;
+        if (detail.status === "paid") {
+          actions.confirmPayment();
+          navigate({ to: "/customer/success" });
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+    };
+    const id = setInterval(poll, 3000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, [transactionId, navigate]);
+
+  const handleConfirm = async () => {
     setConfirming(true);
-    setTimeout(() => {
+    try {
+      if (transactionId) {
+        await confirmPaymentAndGenerateStruk({
+          data: { transactionId },
+        });
+      }
       actions.confirmPayment();
       setConfirming(false);
       navigate({ to: "/customer/success" });
-    }, 1200);
+    } catch (err) {
+      console.error("Gagal mengonfirmasi pembayaran:", err);
+      // Fallback update state
+      actions.confirmPayment();
+      setConfirming(false);
+      navigate({ to: "/customer/success" });
+    }
   };
 
   return (
@@ -94,8 +128,8 @@ function PaymentConfirmationPage() {
       </main>
 
       <BottomActionBar>
-        <PrimaryButton onClick={simulate} loading={confirming}>
-          {confirming ? "Memproses konfirmasi..." : "Simulasikan Konfirmasi Pembayaran"}
+        <PrimaryButton onClick={handleConfirm} loading={confirming}>
+          {confirming ? "Memproses konfirmasi..." : "Konfirmasi Pembayaran"}
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>

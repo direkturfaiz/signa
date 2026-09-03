@@ -14,10 +14,10 @@ import {
   PAYMENT_METHODS,
   actions,
   cartTotal,
-  generateTransactionId,
   useBarberin,
   type PaymentMethodId,
 } from "@/lib/barberin-store";
+import { createCustomerBookingAndTransaction } from "@/lib/bookings";
 
 export const Route = createFileRoute("/customer/payment")({
   head: () => ({
@@ -35,23 +35,53 @@ const ICONS = { tunai: Banknote, qris: QrCode, transfer: Building2 } as const;
 
 function PaymentPage() {
   const navigate = useNavigate();
-  const { cartItems, paymentMethod, customerName, customerId } = useBarberin();
+  const { cartItems, paymentMethod, customerName, customerId, selectedCapster } = useBarberin();
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const total = cartTotal(cartItems);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!paymentMethod) {
       setError("Silakan pilih metode pembayaran.");
       return;
     }
+    if (!selectedCapster) {
+      setError("Capster belum dipilih. Silakan kembali ke pemilihan capster.");
+      return;
+    }
+    if (cartItems.length === 0) {
+      setError("Keranjang masih kosong.");
+      return;
+    }
+
     setError(null);
     setProcessing(true);
-    setTimeout(() => {
-      actions.createTransaction(generateTransactionId());
+
+    try {
+      const result = await createCustomerBookingAndTransaction({
+        data: {
+          customerName: customerName || "Pelanggan Umum",
+          capsterId: selectedCapster.id,
+          items: cartItems.map((item) => ({
+            serviceId: item.service.id,
+            quantity: item.quantity,
+          })),
+          paymentMethod,
+        },
+      });
+
+      actions.createTransaction(result.transactionId);
       setProcessing(false);
       navigate({ to: "/customer/service-execution" });
-    }, 800);
+    } catch (err) {
+      console.error("Gagal membuat pesanan:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Gagal memproses transaksi. Silakan coba lagi.",
+      );
+      setProcessing(false);
+    }
   };
 
   return (

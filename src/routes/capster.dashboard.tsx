@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Coins, Receipt, Scissors, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { MobileShell } from "@/components/barberin/ui";
 import {
@@ -13,6 +13,8 @@ import {
 } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
 import { capsterActions, useCapster } from "@/lib/capster-store";
+import { getDashboardMetrics } from "@/lib/capster-transactions";
+import { endShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/dashboard")({
   head: () => ({
@@ -26,10 +28,31 @@ export const Route = createFileRoute("/capster/dashboard")({
 
 function CapsterDashboardPage() {
   const navigate = useNavigate();
-  const { capsterName, dashboardMetrics } = useCapster();
+  const { capsterName, dashboardMetrics, shiftId } = useCapster();
   const [showEndShiftModal, setShowEndShiftModal] = useState(false);
 
-  const handleEndShiftConfirm = () => {
+  useEffect(() => {
+    let mounted = true;
+    getDashboardMetrics()
+      .then((metrics) => {
+        if (!mounted) return;
+        capsterActions.setDashboardMetrics(metrics);
+      })
+      .catch((e) => console.error("Gagal memuat metrik dashboard:", e));
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleEndShiftConfirm = async () => {
+    if (shiftId) {
+      try {
+        await endShift({ data: { shiftId } });
+      } catch (e) {
+        console.error("Gagal mengakhiri shift di database:", e);
+      }
+    }
     capsterActions.endShift();
     setShowEndShiftModal(false);
     navigate({ to: "/capster/shift-saved" });

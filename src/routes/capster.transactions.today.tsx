@@ -1,16 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Clock } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BottomActionBar,
   GlassCard,
   MobileShell,
   PrimaryButton,
+  SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
-import { useCapster } from "@/lib/capster-store";
+import { capsterActions, useCapster, type CapsterTransaction } from "@/lib/capster-store";
+import { getCapsterTransactions } from "@/lib/capster-transactions";
 
 export const Route = createFileRoute("/capster/transactions/today")({
   head: () => ({
@@ -26,6 +28,25 @@ function TodayTransactionsPage() {
   const navigate = useNavigate();
   const { transactions, dashboardMetrics } = useCapster();
   const [filter, setFilter] = useState<"Semua" | "Selesai" | "Batal">("Semua");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    getCapsterTransactions({ data: { todayOnly: true } })
+      .then((data) => {
+        if (!mounted) return;
+        capsterActions.setTransactions(data as CapsterTransaction[]);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const totalCount = transactions.length;
   const selesaiCount = transactions.filter((t) => t.status === "Selesai").length;

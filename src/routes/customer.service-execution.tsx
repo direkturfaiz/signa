@@ -83,19 +83,39 @@ export function ServiceExecutionStatusView({ status }: { status: ServiceExecutio
   );
 }
 
+import { getTransactionDetail } from "@/lib/bookings";
+
 function ServiceExecutionPage() {
   const navigate = useNavigate();
   const { cartItems, serviceExecutionStatus, transactionId, selectedCapster } = useBarberin();
   const total = cartTotal(cartItems);
 
   useEffect(() => {
-    const timers = [
-      setTimeout(() => actions.setServiceExecutionStatus("DIKERJAKAN"), 1500),
-      setTimeout(() => actions.setServiceExecutionStatus("HAMPIR_SELESAI"), 3500),
-      setTimeout(() => actions.setServiceExecutionStatus("DISELESAIKAN"), 5500),
-    ];
-    return () => timers.forEach(clearTimeout);
-  }, []);
+    if (!transactionId) return;
+
+    let mounted = true;
+    const check = async () => {
+      try {
+        const detail = await getTransactionDetail({ data: { transactionId } });
+        if (!mounted || !detail) return;
+
+        if (detail.status === "paid" || detail.bookingStatus === "completed") {
+          actions.setServiceExecutionStatus("DISELESAIKAN");
+        } else if (detail.bookingStatus === "confirmed") {
+          actions.setServiceExecutionStatus("DIKERJAKAN");
+        }
+      } catch (err) {
+        console.error("Polling status error:", err);
+      }
+    };
+
+    check();
+    const interval = setInterval(check, 3000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [transactionId]);
 
   return (
     <MobileShell>
