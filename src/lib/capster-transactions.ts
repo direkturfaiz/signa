@@ -243,8 +243,14 @@ export const getDashboardMetrics = createServerFn({
       if (c) targetCapsterId = c.id_capster;
     }
 
-    // Jika tidak ada capster yang teridentifikasi, kembalikan data kosong (0)
-    // agar tidak menampilkan data global seluruh barbershop ataupun capster lain
+    if (!targetCapsterId) {
+      const [firstCapster] = await db
+        .select({ id_capster: capster.id_capster })
+        .from(capster)
+        .limit(1);
+      if (firstCapster) targetCapsterId = firstCapster.id_capster;
+    }
+
     if (!targetCapsterId) {
       return {
         totalTransaksi: 0,
@@ -339,17 +345,11 @@ export const getDashboardMetrics = createServerFn({
       totalLayanan = dbRows.reduce((s, d) => s + (d.qty || 1), 0);
     }
 
-    // Capster aktif: jumlah capster yang sedang check-in / memiliki shift "ongoing" pada hari ini
+    // Capster aktif: jumlah capster yang sedang check-in / memiliki shift "ongoing"
     const activeCapsters = await db
       .select({ count: sql<number>`count(distinct ${shiftCapster.id_capster})` })
       .from(shiftCapster)
-      .where(
-        and(
-          eq(shiftCapster.status, "ongoing"),
-          gte(shiftCapster.tanggal, startOfToday),
-          lte(shiftCapster.tanggal, endOfToday),
-        ),
-      );
+      .where(eq(shiftCapster.status, "ongoing"));
 
     const capsterAktif = Number(activeCapsters[0]?.count ?? 0);
 

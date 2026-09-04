@@ -17,6 +17,14 @@ import { getDashboardMetrics } from "@/lib/capster-transactions";
 import { endShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/dashboard")({
+  loader: async () => {
+    try {
+      return await getDashboardMetrics();
+    } catch (e) {
+      console.error("Loader error getDashboardMetrics:", e);
+      return null;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Dashboard Capster — BARBERIN" },
@@ -28,8 +36,20 @@ export const Route = createFileRoute("/capster/dashboard")({
 
 function CapsterDashboardPage() {
   const navigate = useNavigate();
+  const loaderMetrics = Route.useLoaderData();
   const { capsterId, userId, capsterName, dashboardMetrics, shiftId } = useCapster();
   const [showEndShiftModal, setShowEndShiftModal] = useState(false);
+
+  useEffect(() => {
+    if (loaderMetrics) {
+      capsterActions.setDashboardMetrics(loaderMetrics);
+    }
+  }, [loaderMetrics]);
+
+  const currentMetrics =
+    dashboardMetrics.totalTransaksi > 0 || dashboardMetrics.totalPendapatan > 0
+      ? dashboardMetrics
+      : (loaderMetrics ?? dashboardMetrics);
 
   useEffect(() => {
     let mounted = true;
@@ -101,48 +121,48 @@ function CapsterDashboardPage() {
           <SummaryCard
             icon={Receipt}
             title="TOTAL TRANSAKSI"
-            value={dashboardMetrics.totalTransaksi}
-            delta={dashboardMetrics.deltaTransaksi}
+            value={currentMetrics.totalTransaksi}
+            delta={currentMetrics.deltaTransaksi}
             tone="primary"
           />
           <SummaryCard
             icon={Coins}
             title="TOTAL PENDAPATAN"
-            value={formatRupiah(dashboardMetrics.totalPendapatan)}
-            delta={dashboardMetrics.deltaPendapatan}
+            value={formatRupiah(currentMetrics.totalPendapatan)}
+            delta={currentMetrics.deltaPendapatan}
             tone="success"
           />
           <SummaryCard
             icon={Scissors}
             title="TOTAL LAYANAN"
-            value={dashboardMetrics.totalLayanan}
-            delta={dashboardMetrics.deltaLayanan}
+            value={currentMetrics.totalLayanan}
+            delta={currentMetrics.deltaLayanan}
             tone="purple"
           />
           <SummaryCard
             icon={Users}
             title="CAPSTER AKTIF"
-            value={String(dashboardMetrics.capsterAktif).padStart(2, "0")}
-            delta={dashboardMetrics.deltaCapster}
+            value={String(currentMetrics.capsterAktif).padStart(2, "0")}
+            delta={currentMetrics.deltaCapster}
             tone="warning"
           />
         </div>
 
         {/* Status Layanan Section */}
         <ServiceStatusSection
-          selesai={dashboardMetrics.statusLayanan.selesai}
-          sedangDikerjakan={dashboardMetrics.statusLayanan.sedangDikerjakan}
-          menunggu={dashboardMetrics.statusLayanan.menunggu}
-          dibatalkan={dashboardMetrics.statusLayanan.dibatalkan}
+          selesai={currentMetrics.statusLayanan.selesai}
+          sedangDikerjakan={currentMetrics.statusLayanan.sedangDikerjakan}
+          menunggu={currentMetrics.statusLayanan.menunggu}
+          dibatalkan={currentMetrics.statusLayanan.dibatalkan}
         />
 
         {/* Ringkasan Hari Ini Section */}
         <DailySummaryCard
-          pendapatan={dashboardMetrics.ringkasanHariIni.totalPendapatan}
-          transaksi={dashboardMetrics.ringkasanHariIni.totalTransaksi}
-          layanan={dashboardMetrics.ringkasanHariIni.totalLayanan}
-          selesai={dashboardMetrics.ringkasanHariIni.selesai}
-          belumSelesai={dashboardMetrics.ringkasanHariIni.belumSelesai}
+          pendapatan={currentMetrics.ringkasanHariIni.totalPendapatan}
+          transaksi={currentMetrics.ringkasanHariIni.totalTransaksi}
+          layanan={currentMetrics.ringkasanHariIni.totalLayanan}
+          selesai={currentMetrics.ringkasanHariIni.selesai}
+          belumSelesai={currentMetrics.ringkasanHariIni.belumSelesai}
           onEndShift={() => setShowEndShiftModal(true)}
         />
       </main>
