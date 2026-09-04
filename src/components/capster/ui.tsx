@@ -246,7 +246,96 @@ export function CheckInStatusCard({ isCheckedIn }: { isCheckedIn: boolean }) {
   );
 }
 
-// Card Section Status Layanan di Dashboard
+// Section Transaksi Belum Dikonfirmasi di Dashboard
+export function UnconfirmedTransactionsSection({
+  transactions,
+}: {
+  transactions: CapsterTransaction[];
+}) {
+  return (
+    <GlassCard className="space-y-3.5 p-4">
+      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[14px] font-bold uppercase tracking-wider">
+            TRANSAKSI BELUM DIKONFIRMASI
+          </h2>
+          {transactions.length > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-warning/20 px-1.5 text-[11px] font-bold text-warning ring-1 ring-warning/30">
+              {transactions.length}
+            </span>
+          )}
+        </div>
+        <Link
+          to="/capster/transactions"
+          className="text-[12px] font-semibold text-primary-soft hover:underline"
+        >
+          Lihat Semua &gt;
+        </Link>
+      </div>
+
+      {transactions.length === 0 ? (
+        <div className="py-6 text-center text-muted-foreground">
+          <CheckCircle2 className="mx-auto h-8 w-8 text-success/70 mb-2" strokeWidth={2} />
+          <p className="text-[13px] font-semibold text-foreground">
+            Tidak Ada Transaksi Menunggu
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Semua transaksi saat ini sudah dikonfirmasi.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-0.5">
+          {transactions.map((trx) => (
+            <Link
+              key={trx.id}
+              to="/capster/transactions/$transactionId"
+              params={{ transactionId: trx.id }}
+              className="glass-2 block rounded-[14px] p-3 border border-white/5 space-y-2 transition-all hover:bg-white/[0.08] active:scale-[0.99]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-[12px] font-bold text-primary-soft truncate">
+                    #{trx.id.length > 14 ? `${trx.id.slice(0, 14)}...` : trx.id}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">• {trx.time}</span>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning ring-1 ring-warning/30">
+                  <Clock className="h-3 w-3" strokeWidth={2.5} />
+                  Menunggu
+                </span>
+              </div>
+
+              <div className="min-w-0">
+                <p className="truncate text-[14px] font-bold text-foreground">
+                  {trx.customerName}
+                </p>
+                <p className="truncate text-[12px] text-muted-foreground">
+                  {trx.serviceNames}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[13px]">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {trx.paymentMethod}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[14px] text-foreground">
+                    {formatRupiah(trx.total)}
+                  </span>
+                  <span className="flex h-6 items-center justify-center rounded-[8px] bg-primary/20 px-2 text-[11px] font-bold text-primary-soft ring-1 ring-primary/40">
+                    Konfirmasi &gt;
+                  </span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+// Card Section Status Layanan di Dashboard (kompatibilitas)
 export function ServiceStatusSection({
   selesai,
   sedangDikerjakan,
@@ -291,69 +380,44 @@ export function ServiceStatusSection({
   );
 }
 
-// Ringkasan Hari Ini Card
-export function DailySummaryCard({
-  pendapatan,
-  transaksi,
-  layanan,
-  selesai,
-  belumSelesai,
+// Action Buttons Hari Ini (Transaksi Hari Ini & Akhiri Shift)
+export function DailyActionButtons({
   onEndShift,
 }: {
-  pendapatan: number;
-  transaksi: number;
-  layanan: number;
-  selesai: number;
-  belumSelesai: number;
   onEndShift: () => void;
 }) {
   return (
-    <GlassCard className="space-y-3.5 p-4">
-      <h2 className="text-[14px] font-bold uppercase tracking-wider border-b border-white/10 pb-2">
-        RINGKASAN HARI INI
-      </h2>
-
-      <div className="space-y-2 text-[13px]">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Pendapatan</span>
-          <span className="font-bold text-primary-soft text-[14px]">{formatRupiah(pendapatan)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Transaksi</span>
-          <span className="font-semibold">{transaksi}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Layanan</span>
-          <span className="font-semibold">{layanan}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Selesai (Layanan)</span>
-          <span className="font-semibold text-success">{selesai}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Belum Selesai</span>
-          <span className="font-semibold text-warning">{belumSelesai}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
-        <Link
-          to="/capster/transactions/today"
-          className="glass-2 flex h-11 items-center justify-center rounded-[12px] px-3 text-[13px] font-semibold text-foreground transition-all active:scale-[0.98]"
-        >
-          Transaksi Hari Ini
-        </Link>
-        <button
-          type="button"
-          onClick={onEndShift}
-          className="flex h-11 items-center justify-center gap-1.5 rounded-[12px] border border-danger/40 bg-danger/15 px-3 text-[13px] font-semibold text-danger transition-all active:scale-[0.98]"
-        >
-          <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
-          Akhiri Shift
-        </button>
-      </div>
-    </GlassCard>
+    <div className="grid grid-cols-2 gap-2.5 pt-1">
+      <Link
+        to="/capster/transactions/today"
+        className="glass-2 flex h-11 items-center justify-center rounded-[12px] px-3 text-[13px] font-semibold text-foreground transition-all active:scale-[0.98]"
+      >
+        Transaksi Hari Ini
+      </Link>
+      <button
+        type="button"
+        onClick={onEndShift}
+        className="flex h-11 items-center justify-center gap-1.5 rounded-[12px] border border-danger/40 bg-danger/15 px-3 text-[13px] font-semibold text-danger transition-all active:scale-[0.98]"
+      >
+        <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
+        Akhiri Shift
+      </button>
+    </div>
   );
+}
+
+// Kompatibilitas DailySummaryCard (hanya tombol aksi)
+export function DailySummaryCard({
+  onEndShift,
+}: {
+  pendapatan?: number;
+  transaksi?: number;
+  layanan?: number;
+  selesai?: number;
+  belumSelesai?: number;
+  onEndShift: () => void;
+}) {
+  return <DailyActionButtons onEndShift={onEndShift} />;
 }
 
 // Badge Status Transaksi

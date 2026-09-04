@@ -6,23 +6,34 @@ import { MobileShell } from "@/components/barberin/ui";
 import {
   CapsterBottomNav,
   CapsterHeader,
-  DailySummaryCard,
-  ServiceStatusSection,
+  DailyActionButtons,
+  UnconfirmedTransactionsSection,
   ShiftEndModal,
   SummaryCard,
 } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
-import { capsterActions, useCapster } from "@/lib/capster-store";
-import { getDashboardMetrics } from "@/lib/capster-transactions";
+import {
+  capsterActions,
+  useCapster,
+  type CapsterTransaction,
+} from "@/lib/capster-store";
+import {
+  getCapsterTransactions,
+  getDashboardMetrics,
+} from "@/lib/capster-transactions";
 import { endShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/dashboard")({
   loader: async () => {
     try {
-      return await getDashboardMetrics();
+      const [metrics, txs] = await Promise.all([
+        getDashboardMetrics(),
+        getCapsterTransactions(),
+      ]);
+      return { metrics, txs: (txs ?? []) as CapsterTransaction[] };
     } catch (e) {
-      console.error("Loader error getDashboardMetrics:", e);
-      return null;
+      console.error("Loader error dashboard:", e);
+      return { metrics: null, txs: [] as CapsterTransaction[] };
     }
   },
   head: () => ({
@@ -36,41 +47,62 @@ export const Route = createFileRoute("/capster/dashboard")({
 
 function CapsterDashboardPage() {
   const navigate = useNavigate();
-  const loaderMetrics = Route.useLoaderData();
-  const { capsterId, userId, capsterName, dashboardMetrics, shiftId } = useCapster();
+  const loaderData = Route.useLoaderData();
+  const loaderMetrics = loaderData?.metrics ?? null;
+  const loaderTxs = loaderData?.txs ?? [];
+
+  const { capsterId, userId, capsterName, dashboardMetrics, shiftId, transactions } =
+    useCapster();
   const [showEndShiftModal, setShowEndShiftModal] = useState(false);
 
   useEffect(() => {
     if (loaderMetrics) {
       capsterActions.setDashboardMetrics(loaderMetrics);
     }
-  }, [loaderMetrics]);
+    if (loaderTxs && loaderTxs.length > 0) {
+      capsterActions.setTransactions(loaderTxs);
+    }
+  }, [loaderMetrics, loaderTxs]);
 
   const currentMetrics =
     dashboardMetrics.totalTransaksi > 0 || dashboardMetrics.totalPendapatan > 0
       ? dashboardMetrics
       : (loaderMetrics ?? dashboardMetrics);
 
+  const currentTransactions =
+    transactions.length > 0 ? transactions : loaderTxs;
+  const unconfirmedTransactions = currentTransactions.filter(
+    (t) => t.status === "Menunggu",
+  );
+
   useEffect(() => {
     let mounted = true;
 
-    const fetchMetrics = async () => {
+    const fetchAllData = async () => {
       try {
-        const metrics = await getDashboardMetrics({
-          data: {
-            capsterId: capsterId ?? undefined,
-            userId: userId ?? undefined,
-          },
-        });
+        const [metrics, txs] = await Promise.all([
+          getDashboardMetrics({
+            data: {
+              capsterId: capsterId ?? undefined,
+              userId: userId ?? undefined,
+            },
+          }),
+          getCapsterTransactions({
+            data: {
+              capsterId: capsterId ?? undefined,
+            },
+          }),
+        ]);
         if (!mounted) return;
-        capsterActions.setDashboardMetrics(metrics);
+        if (metrics) capsterActions.setDashboardMetrics(metrics);
+        if (txs) capsterActions.setTransactions(txs as CapsterTransaction[]);
       } catch (e) {
-        console.error("Gagal memuat metrik dashboard:", e);
+        console.error("Gagal memuat data dashboard:", e);
       }
     };
 
-    fetchMetrics();
-    const intervalId = setInterval(fetchMetrics, 4000);
+    fetchAllData();
+    const intervalId = setInterval(fetchAllData, 4000);
 
     return () => {
       mounted = false;
@@ -148,23 +180,11 @@ function CapsterDashboardPage() {
           />
         </div>
 
-        {/* Status Layanan Section */}
-        <ServiceStatusSection
-          selesai={currentMetrics.statusLayanan.selesai}
-          sedangDikerjakan={currentMetrics.statusLayanan.sedangDikerjakan}
-          menunggu={currentMetrics.statusLayanan.menunggu}
-          dibatalkan={currentMetrics.statusLayanan.dibatalkan}
-        />
+        {/* Daftar Transaksi Belum Dikonfirmasi */}
+        <UnconfirmedTransactionsSection transactions={unconfirmedTransactions} />
 
-        {/* Ringkasan Hari Ini Section */}
-        <DailySummaryCard
-          pendapatan={currentMetrics.ringkasanHariIni.totalPendapatan}
-          transaksi={currentMetrics.ringkasanHariIni.totalTransaksi}
-          layanan={currentMetrics.ringkasanHariIni.totalLayanan}
-          selesai={currentMetrics.ringkasanHariIni.selesai}
-          belumSelesai={currentMetrics.ringkasanHariIni.belumSelesai}
-          onEndShift={() => setShowEndShiftModal(true)}
-        />
+        {/* Tombol Aksi: Transaksi Hari Ini & Akhiri Shift */}
+        <DailyActionButtons onEndShift={() => setShowEndShiftModal(true)} />
       </main>
 
       {/* Modal Konfirmasi Akhiri Shift */}
