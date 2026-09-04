@@ -33,20 +33,28 @@ function CapsterDashboardPage() {
 
   useEffect(() => {
     let mounted = true;
-    getDashboardMetrics({
-      data: {
-        capsterId: capsterId ?? undefined,
-        userId: userId ?? undefined,
-      },
-    })
-      .then((metrics) => {
+
+    const fetchMetrics = async () => {
+      try {
+        const metrics = await getDashboardMetrics({
+          data: {
+            capsterId: capsterId ?? undefined,
+            userId: userId ?? undefined,
+          },
+        });
         if (!mounted) return;
         capsterActions.setDashboardMetrics(metrics);
-      })
-      .catch((e) => console.error("Gagal memuat metrik dashboard:", e));
+      } catch (e) {
+        console.error("Gagal memuat metrik dashboard:", e);
+      }
+    };
+
+    fetchMetrics();
+    const intervalId = setInterval(fetchMetrics, 4000);
 
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
   }, [capsterId, userId]);
 

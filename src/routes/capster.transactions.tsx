@@ -44,19 +44,28 @@ function CapsterTransactionsPage() {
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    getCapsterTransactions()
-      .then((data) => {
+
+    const fetchTransactions = async (isInitial = false) => {
+      if (isInitial) setLoading(true);
+      try {
+        const data = await getCapsterTransactions();
         if (!mounted) return;
         capsterActions.setTransactions(data as CapsterTransaction[]);
-      })
-      .catch((err) => console.error("Gagal memuat transaksi:", err))
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+      } catch (err) {
+        console.error("Gagal memuat transaksi:", err);
+      } finally {
+        if (mounted && isInitial) setLoading(false);
+      }
+    };
+
+    fetchTransactions(true);
+    const intervalId = setInterval(() => {
+      fetchTransactions(false);
+    }, 3000);
 
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -65,7 +74,6 @@ function CapsterTransactionsPage() {
   }
 
   const filtered = transactions.filter((t) => {
-
     const matchSearch =
       t.id.toLowerCase().includes(search.toLowerCase()) ||
       t.customerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -102,9 +110,13 @@ function CapsterTransactionsPage() {
         </div>
 
         {/* Filter Chips */}
-        <div className="flex items-center gap-2">
-          {(["Semua", "Selesai", "Batal"] as const).map((filter) => {
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {(["Semua", "Menunggu", "Selesai", "Batal"] as const).map((filter) => {
             const active = activeFilter === filter;
+            const count =
+              filter === "Semua"
+                ? transactions.length
+                : transactions.filter((t) => t.status === filter).length;
 
             return (
               <button
@@ -113,11 +125,24 @@ function CapsterTransactionsPage() {
                 onClick={() => setActiveFilter(filter)}
                 className={
                   active
-                    ? "rounded-full bg-primary px-4 py-1.5 text-[12px] font-bold text-white shadow-md transition-all"
-                    : "glass-1 rounded-full px-4 py-1.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all"
+                    ? filter === "Menunggu"
+                      ? "flex items-center gap-1.5 whitespace-nowrap rounded-full bg-warning px-3.5 py-1.5 text-[12px] font-bold text-black shadow-md transition-all"
+                      : "flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3.5 py-1.5 text-[12px] font-bold text-white shadow-md transition-all"
+                    : "glass-1 flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all"
                 }
               >
-                {filter}
+                <span>{filter}</span>
+                {count > 0 && filter !== "Semua" ? (
+                  <span
+                    className={
+                      active
+                        ? "rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold"
+                        : "rounded-full bg-white/10 px-1.5 py-0.2 text-[10px] font-semibold text-foreground"
+                    }
+                  >
+                    {count}
+                  </span>
+                ) : null}
               </button>
             );
           })}

@@ -27,28 +27,38 @@ export const Route = createFileRoute("/capster/transactions/today")({
 function TodayTransactionsPage() {
   const navigate = useNavigate();
   const { transactions, dashboardMetrics } = useCapster();
-  const [filter, setFilter] = useState<"Semua" | "Selesai" | "Batal">("Semua");
+  const [filter, setFilter] = useState<"Semua" | "Menunggu" | "Selesai" | "Batal">("Semua");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    getCapsterTransactions({ data: { todayOnly: true } })
-      .then((data) => {
+
+    const fetchToday = async (isInitial = false) => {
+      if (isInitial) setLoading(true);
+      try {
+        const data = await getCapsterTransactions({ data: { todayOnly: true } });
         if (!mounted) return;
         capsterActions.setTransactions(data as CapsterTransaction[]);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+      } catch (err) {
+        console.error("Gagal memuat transaksi hari ini:", err);
+      } finally {
+        if (mounted && isInitial) setLoading(false);
+      }
+    };
+
+    fetchToday(true);
+    const intervalId = setInterval(() => {
+      fetchToday(false);
+    }, 3000);
 
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
   }, []);
 
   const totalCount = transactions.length;
+  const menungguCount = transactions.filter((t) => t.status === "Menunggu").length;
   const selesaiCount = transactions.filter((t) => t.status === "Selesai").length;
   const batalCount = transactions.filter((t) => t.status === "Batal").length;
 
@@ -68,25 +78,36 @@ function TodayTransactionsPage() {
 
       <main className="flex-1 space-y-4 px-4 pb-28 pt-3">
         {/* Filter Tabs with Counts */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-1.5">
           <button
             type="button"
             onClick={() => setFilter("Semua")}
             className={
               filter === "Semua"
-                ? "rounded-[12px] bg-primary py-2 text-[12px] font-bold text-white shadow-md transition-all"
-                : "glass-1 rounded-[12px] py-2 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all"
+                ? "rounded-[12px] bg-primary py-2 text-[11px] font-bold text-white shadow-md transition-all"
+                : "glass-1 rounded-[12px] py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-all"
             }
           >
             Semua ({totalCount})
           </button>
           <button
             type="button"
+            onClick={() => setFilter("Menunggu")}
+            className={
+              filter === "Menunggu"
+                ? "rounded-[12px] bg-warning py-2 text-[11px] font-bold text-black shadow-md transition-all"
+                : "glass-1 rounded-[12px] py-2 text-[11px] font-semibold text-warning hover:text-foreground transition-all"
+            }
+          >
+            Menunggu ({menungguCount})
+          </button>
+          <button
+            type="button"
             onClick={() => setFilter("Selesai")}
             className={
               filter === "Selesai"
-                ? "rounded-[12px] bg-success py-2 text-[12px] font-bold text-white shadow-md transition-all"
-                : "glass-1 rounded-[12px] py-2 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all"
+                ? "rounded-[12px] bg-success py-2 text-[11px] font-bold text-white shadow-md transition-all"
+                : "glass-1 rounded-[12px] py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-all"
             }
           >
             Selesai ({selesaiCount})
@@ -96,8 +117,8 @@ function TodayTransactionsPage() {
             onClick={() => setFilter("Batal")}
             className={
               filter === "Batal"
-                ? "rounded-[12px] bg-danger py-2 text-[12px] font-bold text-white shadow-md transition-all"
-                : "glass-1 rounded-[12px] py-2 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-all"
+                ? "rounded-[12px] bg-danger py-2 text-[11px] font-bold text-white shadow-md transition-all"
+                : "glass-1 rounded-[12px] py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-all"
             }
           >
             Batal ({batalCount})

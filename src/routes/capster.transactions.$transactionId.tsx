@@ -48,8 +48,11 @@ function CapsterTransactionDetailPage() {
 
   useEffect(() => {
     let mounted = true;
-    getTransactionDetail({ data: { transactionId } })
-      .then((detail) => {
+
+    const fetchDetail = async (isInitial = false) => {
+      if (isInitial && !storeTrx) setLoading(true);
+      try {
+        const detail = await getTransactionDetail({ data: { transactionId } });
         if (!mounted || !detail) return;
         const mapped: CapsterTransaction = {
           id: detail.transactionId,
@@ -85,16 +88,23 @@ function CapsterTransactionDetailPage() {
           capsterName: detail.capsterName,
         };
         setTrx(mapped);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+      } catch (err) {
+        console.error("Gagal mengambil detail transaksi:", err);
+      } finally {
+        if (mounted && isInitial) setLoading(false);
+      }
+    };
+
+    fetchDetail(true);
+    const intervalId = setInterval(() => {
+      fetchDetail(false);
+    }, 3000);
 
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
-  }, [transactionId]);
+  }, [transactionId, storeTrx]);
 
   const handleConfirmPayment = async () => {
     setConfirming(true);

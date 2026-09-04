@@ -66,43 +66,76 @@ export const getCapsterTransactions = createServerFn({
       .orderBy(desc(transaksi.created_at));
 
     const rows = await query;
-    const results = [];
+    if (rows.length === 0) return [];
 
-    for (const r of rows) {
-      if (data?.todayOnly) {
-        const today = new Date();
-        const txDate = new Date(r.created_at);
-        if (
-          txDate.getDate() !== today.getDate() ||
-          txDate.getMonth() !== today.getMonth() ||
-          txDate.getFullYear() !== today.getFullYear()
-        ) {
-          continue;
-        }
-      }
+    // Filter today if requested
+    const filteredRows = data?.todayOnly
+      ? rows.filter((r) => {
+          const today = new Date();
+          const txDate = new Date(r.created_at);
+          return (
+            txDate.getDate() === today.getDate() &&
+            txDate.getMonth() === today.getMonth() &&
+            txDate.getFullYear() === today.getFullYear()
+          );
+        })
+      : rows;
 
-      let capsterName = "Capster";
-      let capsterId = "";
-      if (r.id_booking) {
-        const b = await db
-          .select({ id_capster: booking.id_capster })
-          .from(booking)
-          .where(eq(booking.id_booking, r.id_booking))
-          .limit(1);
+    if (filteredRows.length === 0) return [];
 
-        if (b[0]?.id_capster) {
-          capsterId = b[0].id_capster;
-          const c = await db
-            .select({ name: users.nama_lengkap })
-            .from(capster)
-            .innerJoin(users, eq(capster.id_user, users.id_user))
-            .where(eq(capster.id_capster, b[0].id_capster))
-            .limit(1);
-          if (c[0]) capsterName = c[0].name;
-        }
-      }
+    const txIds = filteredRows.map((r) => r.id);
+    const bookingIds = filteredRows
+      .map((r) => r.id_booking)
+      .filter((b): b is string => Boolean(b));
 
-      const items: {
+    // Batch query 1: Bookings + Capster user names
+    // Batch query 2: Detail booking + layanan
+    // Batch query 3: Pembayaran
+    const [bookingsWithCapster, allDetails, allPayments] = await Promise.all([
+      bookingIds.length > 0
+        ? db
+            .select({
+              id_booking: booking.id_booking,
+              id_capster: booking.id_capster,
+              capsterName: users.nama_lengkap,
+            })
+            .from(booking)
+            .leftJoin(capster, eq(booking.id_capster, capster.id_capster))
+            .leftJoin(users, eq(capster.id_user, users.id_user))
+            .where(inArray(booking.id_booking, bookingIds))
+        : Promise.resolve([]),
+
+      bookingIds.length > 0
+        ? db
+            .select({
+              id_booking: detailBooking.id_booking,
+              id_layanan: detailBooking.id_layanan,
+              nama_layanan: layanan.nama_layanan,
+              harga_satuan: detailBooking.harga_satuan,
+              qty: detailBooking.qty,
+            })
+            .from(detailBooking)
+            .innerJoin(layanan, eq(detailBooking.id_layanan, layanan.id_layanan))
+            .where(inArray(detailBooking.id_booking, bookingIds))
+        : Promise.resolve([]),
+
+      txIds.length > 0
+        ? db
+            .select({
+              id_transaksi: pembayaran.id_transaksi,
+              metode_pembayaran: pembayaran.metode_pembayaran,
+              referensi: pembayaran.referensi,
+            })
+            .from(pembayaran)
+            .where(inArray(pembayaran.id_transaksi, txIds))
+        : Promise.resolve([]),
+    ]);
+
+    // Fast O(1) in-memory maps
+    const bookingMap = new Map(bookingsWithCapster.map((b) => [b.id_booking, b]));
+    const detailsMap = new Map<
+      string,
+      Array<{
         service: {
           id: string;
           name: string;
@@ -110,44 +143,37 @@ export const getCapsterTransactions = createServerFn({
           category: string;
         };
         quantity: number;
-      }[] = [];
+      }>
+    >();
 
-      if (r.id_booking) {
-        const details = await db
-          .select({
-            id_layanan: detailBooking.id_layanan,
-            nama_layanan: layanan.nama_layanan,
-            harga_satuan: detailBooking.harga_satuan,
-            qty: detailBooking.qty,
-          })
-          .from(detailBooking)
-          .innerJoin(layanan, eq(detailBooking.id_layanan, layanan.id_layanan))
-          .where(eq(detailBooking.id_booking, r.id_booking));
+    allDetails.forEach((d) => {
+      const list = detailsMap.get(d.id_booking) ?? [];
+      list.push({
+        service: {
+          id: d.id_layanan,
+          name: d.nama_layanan,
+          price: Number(d.harga_satuan),
+          category: "Barbershop",
+        },
+        quantity: d.qty,
+      });
+      detailsMap.set(d.id_booking, list);
+    });
 
-        details.forEach((d) => {
-          items.push({
-            service: {
-              id: d.id_layanan,
-              name: d.nama_layanan,
-              price: Number(d.harga_satuan),
-              category: "Barbershop",
-            },
-            quantity: d.qty,
-          });
-        });
-      }
+    const paymentMap = new Map(allPayments.map((p) => [p.id_transaksi, p]));
 
+    return filteredRows.map((r) => {
+      const bInfo = r.id_booking ? bookingMap.get(r.id_booking) : null;
+      const capsterName = bInfo?.capsterName ?? "Capster";
+      const capsterId = bInfo?.id_capster ?? "";
+
+      const items = r.id_booking ? (detailsMap.get(r.id_booking) ?? []) : [];
       const serviceNames =
         items.length > 0
           ? items.map((i) => i.service.name).join(" + ")
           : "Layanan Barbershop";
 
-      const [pay] = await db
-        .select()
-        .from(pembayaran)
-        .where(eq(pembayaran.id_transaksi, r.id))
-        .limit(1);
-
+      const pay = paymentMap.get(r.id);
       const cashReceived = pay?.referensi?.startsWith("Tunai: ")
         ? Number(pay.referensi.replace("Tunai: ", ""))
         : Number(r.total);
@@ -161,7 +187,7 @@ export const getCapsterTransactions = createServerFn({
         displayStatus = "Batal";
       }
 
-      results.push({
+      return {
         id: r.id,
         date: r.created_at.toLocaleDateString("id-ID", {
           day: "2-digit",
@@ -188,10 +214,8 @@ export const getCapsterTransactions = createServerFn({
         status: displayStatus,
         capsterId,
         capsterName,
-      });
-    }
-
-    return results;
+      };
+    });
   });
 
 export const getDashboardMetrics = createServerFn({
@@ -295,19 +319,24 @@ export const getDashboardMetrics = createServerFn({
       } else {
         menunggu++;
       }
+    }
 
-      // Quantity detail layanan hanya dihitung untuk transaksi non-cancelled
-      if (
-        t.id_booking &&
-        t.status_transaksi !== "cancelled" &&
-        t.status_transaksi !== "refunded"
-      ) {
-        const dbRows = await db
-          .select({ qty: detailBooking.qty })
-          .from(detailBooking)
-          .where(eq(detailBooking.id_booking, t.id_booking));
-        totalLayanan += dbRows.reduce((s, d) => s + (d.qty || 1), 0);
-      }
+    // Batch query quantity detail layanan untuk transaksi non-cancelled
+    const bookingIdsForLayanan = txs
+      .filter(
+        (t) =>
+          t.id_booking &&
+          t.status_transaksi !== "cancelled" &&
+          t.status_transaksi !== "refunded",
+      )
+      .map((t) => t.id_booking as string);
+
+    if (bookingIdsForLayanan.length > 0) {
+      const dbRows = await db
+        .select({ qty: detailBooking.qty })
+        .from(detailBooking)
+        .where(inArray(detailBooking.id_booking, bookingIdsForLayanan));
+      totalLayanan = dbRows.reduce((s, d) => s + (d.qty || 1), 0);
     }
 
     // Capster aktif: jumlah capster yang sedang check-in / memiliki shift "ongoing" pada hari ini
