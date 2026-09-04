@@ -1,19 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Clock, Loader2, Scissors, UserRound } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import {
-  BottomActionBar,
   CustomerHeader,
   GlassCard,
   MobileShell,
-  PrimaryButton,
   StatusBadge,
 } from "@/components/barberin/ui";
 import { formatRupiah } from "@/lib/format";
 import {
   actions,
-  cartTotal,
   useBarberin,
   type ServiceExecutionStatus,
 } from "@/lib/barberin-store";
@@ -89,16 +86,17 @@ function ServiceExecutionPage() {
   const {
     cartItems,
     serviceExecutionStatus,
-    paymentConfirmationStatus,
     transactionId,
     selectedCapster,
   } = useBarberin();
-  const total = cartTotal(cartItems);
 
-  const isPaymentConfirmed = paymentConfirmationStatus === "DIKONFIRMASI";
+  const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
-    if (!transactionId) return;
+    if (!transactionId) {
+      navigate({ to: "/customer/services" });
+      return;
+    }
 
     let mounted = true;
     const check = async () => {
@@ -110,12 +108,25 @@ function ServiceExecutionPage() {
         // Capster konfirmasi -> status_transaksi = 'paid' atau paymentStatus = 'success'
         const isPaid =
           detail.status === "paid" || detail.paymentStatus === "success";
-        actions.setPaymentConfirmationStatus(isPaid ? "DIKONFIRMASI" : "MENUNGGU");
+
+        if (isPaid) {
+          actions.setPaymentConfirmationStatus("DIKONFIRMASI");
+          actions.setServiceExecutionStatus("DISELESAIKAN");
+
+          if (!hasNavigatedRef.current) {
+            hasNavigatedRef.current = true;
+            navigate({
+              to: "/customer/receipt/$transactionId",
+              params: { transactionId },
+            });
+          }
+          return;
+        }
+
+        actions.setPaymentConfirmationStatus("MENUNGGU");
 
         // Status pengerjaan layanan
-        if (detail.status === "paid" || detail.bookingStatus === "completed") {
-          actions.setServiceExecutionStatus("DISELESAIKAN");
-        } else if (detail.bookingStatus === "confirmed") {
+        if (detail.bookingStatus === "confirmed") {
           actions.setServiceExecutionStatus("DIKERJAKAN");
         }
       } catch (err) {
@@ -124,12 +135,12 @@ function ServiceExecutionPage() {
     };
 
     check();
-    const interval = setInterval(check, 2000);
+    const interval = setInterval(check, 1500);
     return () => {
       mounted = false;
       clearInterval(interval);
     };
-  }, [transactionId]);
+  }, [transactionId, navigate]);
 
   return (
     <MobileShell>
@@ -139,7 +150,7 @@ function ServiceExecutionPage() {
         backTo="/customer/payment"
       />
 
-      <main className="flex-1 space-y-3 px-4 pb-6 pt-4">
+      <main className="flex-1 space-y-3 px-4 pb-8 pt-4">
         <GlassCard className="flex items-start gap-3">
           <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary-soft" strokeWidth={2} />
           <div className="min-w-0">
@@ -170,23 +181,6 @@ function ServiceExecutionPage() {
 
         <ServiceExecutionStatusView status={serviceExecutionStatus} />
       </main>
-
-      <BottomActionBar>
-        <div className="flex items-center justify-between text-[14px]">
-          <span className="text-muted-foreground">Total Pembayaran</span>
-          <span className="text-[18px] font-bold">{formatRupiah(total)}</span>
-        </div>
-        <PrimaryButton
-          disabled={!isPaymentConfirmed}
-          onClick={() => {
-            if (!isPaymentConfirmed) return;
-            actions.startWaitingConfirmation();
-            navigate({ to: "/customer/payment-confirmation" });
-          }}
-        >
-          Lanjut ke Konfirmasi Pembayaran
-        </PrimaryButton>
-      </BottomActionBar>
     </MobileShell>
   );
 }
