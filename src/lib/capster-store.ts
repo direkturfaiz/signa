@@ -83,6 +83,7 @@ export type ManualTransactionDraft = {
   capsterName: string;
   capsterRole: string;
   selectedServiceIds: string[];
+  selectedServices: CapsterService[];
   customerName: string;
   customerPhone: string;
   notes: string;
@@ -159,6 +160,7 @@ const initialCapsterState: CapsterState = {
     capsterName: "Budi",
     capsterRole: "Senior Barber",
     selectedServiceIds: [],
+    selectedServices: [],
     customerName: "",
     customerPhone: "",
     notes: "",
@@ -318,6 +320,7 @@ export const capsterActions = {
         capsterName: "",
         capsterRole: "",
         selectedServiceIds: [],
+        selectedServices: [],
         customerName: "",
         customerPhone: "",
         notes: "",
@@ -339,14 +342,43 @@ export const capsterActions = {
     });
   },
 
-  toggleManualService(serviceId: string) {
-    const current = state.manualDraft.selectedServiceIds;
-    const exists = current.includes(serviceId);
-    const updated = exists ? current.filter((id) => id !== serviceId) : [...current, serviceId];
+  toggleManualService(serviceOrId: string | CapsterService) {
+    const serviceId = typeof serviceOrId === "string" ? serviceOrId : serviceOrId.id;
+    const currentIds = state.manualDraft.selectedServiceIds;
+    const currentServices = state.manualDraft.selectedServices ?? [];
+    const exists = currentIds.includes(serviceId);
+
+    const updatedIds = exists
+      ? currentIds.filter((id) => id !== serviceId)
+      : [...currentIds, serviceId];
+
+    let updatedServices: CapsterService[];
+    if (exists) {
+      updatedServices = currentServices.filter((s) => s.id !== serviceId);
+    } else {
+      if (typeof serviceOrId !== "string") {
+        updatedServices = [...currentServices, serviceOrId];
+      } else {
+        const found = CAPSTER_SERVICES.find((s) => s.id === serviceId);
+        updatedServices = found ? [...currentServices, found] : currentServices;
+      }
+    }
+
     setState({
       manualDraft: {
         ...state.manualDraft,
-        selectedServiceIds: updated,
+        selectedServiceIds: updatedIds,
+        selectedServices: updatedServices,
+      },
+    });
+  },
+
+  setSelectedServices(services: CapsterService[]) {
+    setState({
+      manualDraft: {
+        ...state.manualDraft,
+        selectedServices: services,
+        selectedServiceIds: services.map((s) => s.id),
       },
     });
   },
@@ -394,6 +426,7 @@ export const capsterActions = {
         capsterName: "",
         capsterRole: "",
         selectedServiceIds: [],
+        selectedServices: [],
         customerName: "",
         customerPhone: "",
         notes: "",
@@ -405,9 +438,12 @@ export const capsterActions = {
   },
 
   commitManualTransaction(): CapsterTransaction {
-    const selectedServices = state.manualDraft.selectedServiceIds
-      .map((id) => CAPSTER_SERVICES.find((s) => s.id === id))
-      .filter((s): s is CapsterService => Boolean(s));
+    const selectedServices =
+      state.manualDraft.selectedServices && state.manualDraft.selectedServices.length > 0
+        ? state.manualDraft.selectedServices
+        : state.manualDraft.selectedServiceIds
+            .map((id) => CAPSTER_SERVICES.find((s) => s.id === id))
+            .filter((s): s is CapsterService => Boolean(s));
 
     const total = selectedServices.reduce((sum, s) => sum + s.price, 0);
     const now = new Date();

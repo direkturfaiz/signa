@@ -153,7 +153,12 @@ function ManualSelectServicesPage() {
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() =>
-                      capsterActions.toggleManualService(service.id)
+                      capsterActions.toggleManualService({
+                        id: service.id,
+                        name: service.name,
+                        price: Number(service.price),
+                        category: service.category,
+                      })
                     }
                     className="w-full text-left transition-all active:scale-[0.99]"
                   >
@@ -219,11 +224,19 @@ function ManualSelectServicesPage() {
 
         <PrimaryButton
           disabled={loading || !!error || selectedIds.length === 0}
-          onClick={() =>
+          onClick={() => {
+            capsterActions.setSelectedServices(
+              selectedServices.map((s) => ({
+                id: s.id,
+                name: s.name,
+                price: Number(s.price),
+                category: s.category,
+              })),
+            );
             navigate({
               to: "/capster/transactions/manual/capster",
-            })
-          }
+            });
+          }}
         >
           LANJUT
           <ArrowRight className="h-4 w-4" strokeWidth={2} />

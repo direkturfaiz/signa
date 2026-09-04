@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Scissors, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BottomActionBar,
@@ -16,7 +16,9 @@ import {
   CAPSTER_SERVICES,
   capsterActions,
   useCapster,
+  type CapsterService,
 } from "@/lib/capster-store";
+import { getServices } from "@/lib/services";
 
 export const Route = createFileRoute("/capster/transactions/manual/detail")({
   head: () => ({
@@ -36,6 +38,68 @@ function ManualTransactionDetailPage() {
   const { manualDraft } = useCapster();
 
   const [name, setName] = useState(manualDraft.customerName);
+  const [resolvedServices, setResolvedServices] = useState<CapsterService[]>(
+    () => manualDraft.selectedServices ?? [],
+  );
+  const [loading, setLoading] = useState(
+    manualDraft.selectedServiceIds.length > 0 &&
+      (!manualDraft.selectedServices || manualDraft.selectedServices.length === 0),
+  );
+
+  useEffect(() => {
+    if (manualDraft.selectedServices && manualDraft.selectedServices.length > 0) {
+      setResolvedServices(manualDraft.selectedServices);
+      setLoading(false);
+      return;
+    }
+
+    if (manualDraft.selectedServiceIds.length === 0) {
+      setResolvedServices([]);
+      setLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    getServices()
+      .then((data) => {
+        if (!mounted) return;
+        const matched: CapsterService[] = data
+          .filter((d) => manualDraft.selectedServiceIds.includes(d.id))
+          .map((d) => ({
+            id: d.id,
+            name: d.name,
+            price: Number(d.price),
+            category: d.durasi_menit ? `${d.durasi_menit} Menit` : "Barbershop",
+          }));
+
+        if (matched.length > 0) {
+          setResolvedServices(matched);
+          capsterActions.setSelectedServices(matched);
+        } else {
+          const staticMatched = CAPSTER_SERVICES.filter((s) =>
+            manualDraft.selectedServiceIds.includes(s.id),
+          );
+          setResolvedServices(staticMatched);
+          if (staticMatched.length > 0) {
+            capsterActions.setSelectedServices(staticMatched);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Gagal memuat detail layanan:", err);
+        const staticMatched = CAPSTER_SERVICES.filter((s) =>
+          manualDraft.selectedServiceIds.includes(s.id),
+        );
+        setResolvedServices(staticMatched);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [manualDraft.selectedServiceIds, manualDraft.selectedServices]);
 
   const selectedCapster =
     CAPSTERS.find((c) => c.id === manualDraft.capsterId) ??
@@ -48,9 +112,10 @@ function ManualTransactionDetailPage() {
         }
       : null);
 
-  const selectedServices = CAPSTER_SERVICES.filter((s) =>
-    manualDraft.selectedServiceIds.includes(s.id),
-  );
+  const selectedServices =
+    resolvedServices.length > 0
+      ? resolvedServices
+      : (manualDraft.selectedServices ?? []);
 
   const subtotal = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const discount = 0;
@@ -173,26 +238,49 @@ function ManualTransactionDetailPage() {
             </div>
 
             <span className="text-[12px] font-medium text-muted-foreground">
-              {selectedServices.length} Layanan
+              {loading ? "Memuat..." : `${selectedServices.length} Layanan`}
             </span>
           </div>
 
-          <div className="space-y-2">
-            {selectedServices.map((service) => (
-              <div
-                key={service.id}
-                className="flex items-center justify-between text-[13px]"
+          {loading ? (
+            <p className="py-4 text-center text-[13px] text-muted-foreground">
+              Memuat detail layanan...
+            </p>
+          ) : selectedServices.length === 0 ? (
+            <div className="py-4 text-center space-y-2">
+              <p className="text-[13px] text-muted-foreground">
+                Belum ada layanan yang dipilih.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({
+                    to: "/capster/transactions/manual/services",
+                  })
+                }
+                className="rounded-[10px] bg-primary/20 px-3 py-1.5 text-[12px] font-bold text-primary-soft hover:bg-primary/30 transition-colors"
               >
-                <span className="font-medium text-muted-foreground">
-                  {service.name}
-                </span>
+                Pilih Layanan
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {selectedServices.map((service) => (
+                <div
+                  key={service.id}
+                  className="flex items-center justify-between text-[13px]"
+                >
+                  <span className="font-medium text-muted-foreground">
+                    {service.name}
+                  </span>
 
-                <span className="font-semibold text-foreground">
-                  {formatRupiah(service.price)}
-                </span>
-              </div>
-            ))}
-          </div>
+                  <span className="font-semibold text-foreground">
+                    {formatRupiah(service.price)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="space-y-2 border-t border-white/10 pt-3 text-[13px]">
             <div className="flex justify-between text-muted-foreground">
@@ -221,7 +309,7 @@ function ManualTransactionDetailPage() {
       <BottomActionBar>
         <PrimaryButton
           onClick={handleNext}
-          disabled={selectedServices.length === 0}
+          disabled={loading || selectedServices.length === 0}
         >
           LANJUT KE PEMBAYARAN
           <ArrowRight className="h-4 w-4" strokeWidth={2} />

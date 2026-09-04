@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Banknote, Building2, Check, QrCode } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BottomActionBar,
@@ -14,9 +14,11 @@ import {
   CAPSTER_SERVICES,
   capsterActions,
   useCapster,
+  type CapsterService,
   type PaymentMethod,
 } from "@/lib/capster-store";
 import { createManualTransaction } from "@/lib/capster-transactions";
+import { getServices } from "@/lib/services";
 
 export const Route = createFileRoute("/capster/transactions/manual/payment")({
   head: () => ({
@@ -45,9 +47,60 @@ function ManualPaymentConfirmationPage() {
   const navigate = useNavigate();
   const { manualDraft, capsterName } = useCapster();
 
-  const selectedServices = CAPSTER_SERVICES.filter((s) =>
-    manualDraft.selectedServiceIds.includes(s.id),
+  const [resolvedServices, setResolvedServices] = useState<CapsterService[]>(
+    () => manualDraft.selectedServices ?? [],
   );
+
+  useEffect(() => {
+    if (manualDraft.selectedServices && manualDraft.selectedServices.length > 0) {
+      setResolvedServices(manualDraft.selectedServices);
+      return;
+    }
+
+    if (manualDraft.selectedServiceIds.length === 0) {
+      setResolvedServices([]);
+      return;
+    }
+
+    let mounted = true;
+    getServices()
+      .then((data) => {
+        if (!mounted) return;
+        const matched: CapsterService[] = data
+          .filter((d) => manualDraft.selectedServiceIds.includes(d.id))
+          .map((d) => ({
+            id: d.id,
+            name: d.name,
+            price: Number(d.price),
+            category: d.durasi_menit ? `${d.durasi_menit} Menit` : "Barbershop",
+          }));
+
+        if (matched.length > 0) {
+          setResolvedServices(matched);
+          capsterActions.setSelectedServices(matched);
+        } else {
+          const staticMatched = CAPSTER_SERVICES.filter((s) =>
+            manualDraft.selectedServiceIds.includes(s.id),
+          );
+          setResolvedServices(staticMatched);
+          if (staticMatched.length > 0) {
+            capsterActions.setSelectedServices(staticMatched);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Gagal memuat detail layanan pembayaran:", err);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [manualDraft.selectedServiceIds, manualDraft.selectedServices]);
+
+  const selectedServices =
+    resolvedServices.length > 0
+      ? resolvedServices
+      : (manualDraft.selectedServices ?? []);
 
   const total = selectedServices.reduce((sum, s) => sum + s.price, 0);
 
@@ -58,6 +111,14 @@ function ManualPaymentConfirmationPage() {
   const [cashReceived, setCashReceived] = useState<number>(
     manualDraft.cashReceived > 0 ? manualDraft.cashReceived : total,
   );
+
+  useEffect(() => {
+    if (manualDraft.cashReceived > 0) {
+      setCashReceived(manualDraft.cashReceived);
+    } else if (total > 0 && cashReceived === 0) {
+      setCashReceived(total);
+    }
+  }, [total, manualDraft.cashReceived]);
 
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");

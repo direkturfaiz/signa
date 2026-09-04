@@ -99,7 +99,7 @@ function ManualTransactionModePage() {
         <PrimaryButton
           onClick={() => {
             capsterActions.initManualDraft();
-            navigate({ to: "/capster/transactions/manual/capster" });
+            navigate({ to: "/capster/transactions/manual/services" });
           }}
         >
           LANJUT
