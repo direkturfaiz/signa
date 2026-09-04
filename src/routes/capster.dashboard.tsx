@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Coins, Receipt, Scissors, Users } from "lucide-react";
+import { Calendar, Coins, Receipt, Scissors, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { MobileShell } from "@/components/barberin/ui";
@@ -110,6 +110,12 @@ function CapsterDashboardPage() {
     };
   }, [capsterId, userId]);
 
+  const currentDate = new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    timeZone: "Asia/Jakarta",
+  });
+
   const handleEndShiftConfirm = async () => {
     if (shiftId) {
       try {
@@ -142,9 +148,9 @@ function CapsterDashboardPage() {
               Kamu ke dashboard capster mu.
             </p>
           </div>
-          <div className="glass-2 flex items-center gap-1 rounded-full px-3 py-1 text-[12px] font-semibold text-primary-soft">
-            <span>Hari ini</span>
-            <span className="text-[10px]">▼</span>
+          <div className="glass-2 flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold text-primary-soft">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>{currentDate}</span>
           </div>
         </div>
 
