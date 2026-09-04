@@ -38,6 +38,7 @@ function CapsterLoginPage() {
       });
       capsterActions.login({
         id: res.id_capster,
+        userId: res.id_user,
         name: res.nama_lengkap,
         role: res.role,
         barbershopId: res.id_barbershop,
@@ -52,6 +53,9 @@ function CapsterLoginPage() {
         id: isAndi
           ? "8b020274-d637-4d0f-b454-b8d387338865"
           : "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
+        userId: isAndi
+          ? "3680f0ba-7d0d-4908-9237-de26c9f5e136"
+          : "f6c60035-fbc2-4e17-9fc2-015e7f478b94",
         name: isAndi ? "Andi" : "Budi",
         role: isAndi ? "Barber" : "Senior Barber",
       });

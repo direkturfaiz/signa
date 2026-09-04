@@ -17,6 +17,7 @@ import {
   useBarberin,
   type ServiceExecutionStatus,
 } from "@/lib/barberin-store";
+import { getTransactionDetail } from "@/lib/bookings";
 
 export const Route = createFileRoute("/customer/service-execution")({
   head: () => ({
@@ -83,12 +84,18 @@ export function ServiceExecutionStatusView({ status }: { status: ServiceExecutio
   );
 }
 
-import { getTransactionDetail } from "@/lib/bookings";
-
 function ServiceExecutionPage() {
   const navigate = useNavigate();
-  const { cartItems, serviceExecutionStatus, transactionId, selectedCapster } = useBarberin();
+  const {
+    cartItems,
+    serviceExecutionStatus,
+    paymentConfirmationStatus,
+    transactionId,
+    selectedCapster,
+  } = useBarberin();
   const total = cartTotal(cartItems);
+
+  const isPaymentConfirmed = paymentConfirmationStatus === "DIKONFIRMASI";
 
   useEffect(() => {
     if (!transactionId) return;
@@ -99,6 +106,13 @@ function ServiceExecutionPage() {
         const detail = await getTransactionDetail({ data: { transactionId } });
         if (!mounted || !detail) return;
 
+        // Cek status pembayaran berdasarkan database:
+        // Capster konfirmasi -> status_transaksi = 'paid' atau paymentStatus = 'success'
+        const isPaid =
+          detail.status === "paid" || detail.paymentStatus === "success";
+        actions.setPaymentConfirmationStatus(isPaid ? "DIKONFIRMASI" : "MENUNGGU");
+
+        // Status pengerjaan layanan
         if (detail.status === "paid" || detail.bookingStatus === "completed") {
           actions.setServiceExecutionStatus("DISELESAIKAN");
         } else if (detail.bookingStatus === "confirmed") {
@@ -110,7 +124,7 @@ function ServiceExecutionPage() {
     };
 
     check();
-    const interval = setInterval(check, 3000);
+    const interval = setInterval(check, 2000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -163,7 +177,9 @@ function ServiceExecutionPage() {
           <span className="text-[18px] font-bold">{formatRupiah(total)}</span>
         </div>
         <PrimaryButton
+          disabled={!isPaymentConfirmed}
           onClick={() => {
+            if (!isPaymentConfirmed) return;
             actions.startWaitingConfirmation();
             navigate({ to: "/customer/payment-confirmation" });
           }}

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   barbershop,
@@ -196,76 +196,158 @@ export const getCapsterTransactions = createServerFn({
 
 export const getDashboardMetrics = createServerFn({
   method: "GET",
-}).handler(async () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+})
+  .validator(
+    (
+      data:
+        | {
+            capsterId?: string;
+            userId?: string;
+          }
+        | undefined,
+    ) => data,
+  )
+  .handler(async ({ data }) => {
+    let targetCapsterId = data?.capsterId;
 
-  const txs = await db
-    .select({
-      id_transaksi: transaksi.id_transaksi,
-      id_booking: transaksi.id_booking,
-      total: transaksi.total,
-      status_transaksi: transaksi.status_transaksi,
-      created_at: transaksi.created_at,
-    })
-    .from(transaksi)
-    .where(gte(transaksi.created_at, today));
-
-  const totalTransaksi = txs.length;
-  const totalPendapatan = txs.reduce((sum, t) => {
-    return sum + (t.status_transaksi === "paid" ? Number(t.total) : 0);
-  }, 0);
-
-  let totalLayanan = 0;
-  let selesai = 0;
-  let menunggu = 0;
-  let dibatalkan = 0;
-
-  for (const t of txs) {
-    if (t.status_transaksi === "paid") selesai++;
-    else if (t.status_transaksi === "cancelled") dibatalkan++;
-    else menunggu++;
-
-    if (t.id_booking) {
-      const dbRows = await db
-        .select({ qty: detailBooking.qty })
-        .from(detailBooking)
-        .where(eq(detailBooking.id_booking, t.id_booking));
-      totalLayanan += dbRows.reduce((s, d) => s + d.qty, 0);
+    if (!targetCapsterId && data?.userId) {
+      const [c] = await db
+        .select({ id_capster: capster.id_capster })
+        .from(capster)
+        .where(eq(capster.id_user, data.userId))
+        .limit(1);
+      if (c) targetCapsterId = c.id_capster;
     }
-  }
 
-  const activeCapsters = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(capster)
-    .where(eq(capster.status, "active"));
+    // Jika tidak ada capster yang teridentifikasi, kembalikan data kosong (0)
+    // agar tidak menampilkan data global seluruh barbershop ataupun capster lain
+    if (!targetCapsterId) {
+      return {
+        totalTransaksi: 0,
+        deltaTransaksi: "Hari ini",
+        totalPendapatan: 0,
+        deltaPendapatan: "Hari ini",
+        totalLayanan: 0,
+        deltaLayanan: "Hari ini",
+        capsterAktif: 0,
+        deltaCapster: "Aktif",
+        statusLayanan: {
+          selesai: 0,
+          sedangDikerjakan: 0,
+          menunggu: 0,
+          dibatalkan: 0,
+        },
+        ringkasanHariIni: {
+          totalPendapatan: 0,
+          totalTransaksi: 0,
+          totalLayanan: 0,
+          selesai: 0,
+          belumSelesai: 0,
+        },
+      };
+    }
 
-  const capsterAktif = Number(activeCapsters[0]?.count ?? 2);
+    // Hitung rentang hari ini (WIB / Asia/Jakarta)
+    const now = new Date();
+    const jakartaDateStr = now.toLocaleDateString("en-CA", {
+      timeZone: "Asia/Jakarta",
+    });
+    const startOfToday = new Date(`${jakartaDateStr}T00:00:00+07:00`);
+    const endOfToday = new Date(`${jakartaDateStr}T23:59:59.999+07:00`);
 
-  return {
-    totalTransaksi,
-    deltaTransaksi: `Hari ini`,
-    totalPendapatan,
-    deltaPendapatan: `Hari ini`,
-    totalLayanan,
-    deltaLayanan: `Hari ini`,
-    capsterAktif,
-    deltaCapster: `Aktif`,
-    statusLayanan: {
-      selesai,
-      sedangDikerjakan: 0,
-      menunggu,
-      dibatalkan,
-    },
-    ringkasanHariIni: {
-      totalPendapatan,
+    // Sesuai ERD: CAPSTER -> SHIFT CAPSTER -> TRANSAKSI
+    const txs = await db
+      .select({
+        id_transaksi: transaksi.id_transaksi,
+        id_booking: transaksi.id_booking,
+        total: transaksi.total,
+        status_transaksi: transaksi.status_transaksi,
+        created_at: transaksi.created_at,
+      })
+      .from(transaksi)
+      .innerJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
+      .where(
+        and(
+          eq(shiftCapster.id_capster, targetCapsterId),
+          gte(transaksi.created_at, startOfToday),
+          lte(transaksi.created_at, endOfToday),
+        ),
+      );
+
+    const totalTransaksi = txs.length;
+    const totalPendapatan = txs.reduce((sum, t) => {
+      return sum + (t.status_transaksi === "paid" ? Number(t.total) : 0);
+    }, 0);
+
+    let totalLayanan = 0;
+    let selesai = 0;
+    let menunggu = 0;
+    let dibatalkan = 0;
+
+    for (const t of txs) {
+      if (t.status_transaksi === "paid") {
+        selesai++;
+      } else if (
+        t.status_transaksi === "cancelled" ||
+        t.status_transaksi === "refunded"
+      ) {
+        dibatalkan++;
+      } else {
+        menunggu++;
+      }
+
+      // Quantity detail layanan hanya dihitung untuk transaksi non-cancelled
+      if (
+        t.id_booking &&
+        t.status_transaksi !== "cancelled" &&
+        t.status_transaksi !== "refunded"
+      ) {
+        const dbRows = await db
+          .select({ qty: detailBooking.qty })
+          .from(detailBooking)
+          .where(eq(detailBooking.id_booking, t.id_booking));
+        totalLayanan += dbRows.reduce((s, d) => s + (d.qty || 1), 0);
+      }
+    }
+
+    // Capster aktif: jumlah capster yang sedang check-in / memiliki shift "ongoing" pada hari ini
+    const activeCapsters = await db
+      .select({ count: sql<number>`count(distinct ${shiftCapster.id_capster})` })
+      .from(shiftCapster)
+      .where(
+        and(
+          eq(shiftCapster.status, "ongoing"),
+          gte(shiftCapster.tanggal, startOfToday),
+          lte(shiftCapster.tanggal, endOfToday),
+        ),
+      );
+
+    const capsterAktif = Number(activeCapsters[0]?.count ?? 0);
+
+    return {
       totalTransaksi,
+      deltaTransaksi: `Hari ini`,
+      totalPendapatan,
+      deltaPendapatan: `Hari ini`,
       totalLayanan,
-      selesai,
-      belumSelesai: menunggu,
-    },
-  };
-});
+      deltaLayanan: `Hari ini`,
+      capsterAktif,
+      deltaCapster: `Aktif`,
+      statusLayanan: {
+        selesai,
+        sedangDikerjakan: 0,
+        menunggu,
+        dibatalkan,
+      },
+      ringkasanHariIni: {
+        totalPendapatan,
+        totalTransaksi,
+        totalLayanan,
+        selesai,
+        belumSelesai: menunggu,
+      },
+    };
+  });
 
 export const createManualTransaction = createServerFn({
   method: "POST",

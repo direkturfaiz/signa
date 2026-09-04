@@ -83,6 +83,7 @@ export const loginCapster = createServerFn({
     const all = await db
       .select({
         id_capster: capster.id_capster,
+        id_user: capster.id_user,
         id_barbershop: capster.id_barbershop,
         nama_lengkap: users.nama_lengkap,
         email: users.email,
@@ -107,6 +108,7 @@ export const loginCapster = createServerFn({
 
     return {
       id_capster: target.id_capster,
+      id_user: target.id_user,
       id_barbershop: target.id_barbershop,
       nama_lengkap: target.nama_lengkap,
       role: target.no_pegawai === "CAP-001" ? "Senior Barber" : "Barber",

@@ -93,6 +93,7 @@ export type ManualTransactionDraft = {
 
 export type CapsterState = {
   isLoggedIn: boolean;
+  userId: string | null;
   capsterId: string | null;
   barbershopId: string | null;
   shiftId: string | null;
@@ -105,122 +106,37 @@ export type CapsterState = {
   lastCreatedTransaction: CapsterTransaction | null;
 };
 
-const INITIAL_METRICS: DashboardMetrics = {
-  totalTransaksi: 12,
-  deltaTransaksi: "↑ 2 dari kemarin",
-  totalPendapatan: 450000,
-  deltaPendapatan: "↑ 15% dari kemarin",
-  totalLayanan: 18,
-  deltaLayanan: "↑ 3 dari kemarin",
-  capsterAktif: 3,
-  deltaCapster: "↑ 5% dari kemarin",
+export const EMPTY_METRICS: DashboardMetrics = {
+  totalTransaksi: 0,
+  deltaTransaksi: "Hari ini",
+  totalPendapatan: 0,
+  deltaPendapatan: "Hari ini",
+  totalLayanan: 0,
+  deltaLayanan: "Hari ini",
+  capsterAktif: 0,
+  deltaCapster: "Aktif",
   statusLayanan: {
-    selesai: 18,
-    sedangDikerjakan: 6,
-    menunggu: 12,
-    dibatalkan: 2,
+    selesai: 0,
+    sedangDikerjakan: 0,
+    menunggu: 0,
+    dibatalkan: 0,
   },
   ringkasanHariIni: {
-    totalPendapatan: 450000,
-    totalTransaksi: 12,
-    totalLayanan: 18,
-    selesai: 10,
-    belumSelesai: 2,
+    totalPendapatan: 0,
+    totalTransaksi: 0,
+    totalLayanan: 0,
+    selesai: 0,
+    belumSelesai: 0,
   },
 };
 
-const INITIAL_TRANSACTIONS: CapsterTransaction[] = [
-  {
-    id: "TRX-20260903-0001",
-    date: "03 September 2026",
-    time: "11:15",
-    customerName: "Ricky Pratama",
-    customerPhone: "0812-3456-7890",
-    items: [{ service: CAPSTER_SERVICES[0]!, quantity: 1 }],
-    serviceNames: "Haircut",
-    subtotal: 30000,
-    discount: 0,
-    total: 30000,
-    paymentMethod: "tunai",
-    cashReceived: 50000,
-    change: 20000,
-    status: "Selesai",
-    capsterId: "CAP001",
-    capsterName: "Budi",
-  },
-  {
-    id: "TRX-20260903-0002",
-    date: "03 September 2026",
-    time: "10:45",
-    customerName: "Andi Pratama",
-    customerPhone: "0821-9876-5432",
-    items: [
-      { service: CAPSTER_SERVICES[0]!, quantity: 1 },
-      { service: CAPSTER_SERVICES[1]!, quantity: 1 },
-    ],
-    serviceNames: "Haircut + Hair Wash",
-    subtotal: 50000,
-    discount: 0,
-    total: 50000,
-    paymentMethod: "qris",
-    status: "Selesai",
-    capsterId: "CAP002",
-    capsterName: "Andi",
-  },
-  {
-    id: "TRX-20260903-0003",
-    date: "03 September 2026",
-    time: "09:45",
-    customerName: "Dimas Saputra",
-    customerPhone: "0857-1122-3344",
-    items: [{ service: CAPSTER_SERVICES[2]!, quantity: 1 }],
-    serviceNames: "Styling",
-    subtotal: 25000,
-    discount: 0,
-    total: 25000,
-    paymentMethod: "transfer",
-    status: "Menunggu",
-    capsterId: "CAP001",
-    capsterName: "Budi",
-  },
-  {
-    id: "TRX-20260903-0004",
-    date: "03 September 2026",
-    time: "09:20",
-    customerName: "Suci S.",
-    customerPhone: "0813-5566-7788",
-    items: [{ service: CAPSTER_SERVICES[0]!, quantity: 1 }],
-    serviceNames: "Haircut",
-    subtotal: 30000,
-    discount: 0,
-    total: 30000,
-    paymentMethod: "tunai",
-    cashReceived: 30000,
-    change: 0,
-    status: "Selesai",
-    capsterId: "CAP001",
-    capsterName: "Budi",
-  },
-  {
-    id: "TRX-20260903-0005",
-    date: "03 September 2026",
-    time: "08:50",
-    customerName: "Budi Santoso",
-    customerPhone: "0878-9900-1122",
-    items: [{ service: CAPSTER_SERVICES[3]!, quantity: 1 }],
-    serviceNames: "Shaving",
-    subtotal: 15000,
-    discount: 0,
-    total: 15000,
-    paymentMethod: "tunai",
-    status: "Batal",
-    capsterId: "CAP002",
-    capsterName: "Andi",
-  },
-];
+const INITIAL_METRICS: DashboardMetrics = EMPTY_METRICS;
+
+const INITIAL_TRANSACTIONS: CapsterTransaction[] = [];
 
 const initialCapsterState: CapsterState = {
   isLoggedIn: true,
+  userId: "f6c60035-fbc2-4e17-9fc2-015e7f478b94",
   capsterId: "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
   barbershopId: "d6c11b82-69d4-4778-9990-a0a18e436336",
   shiftId: "7d271050-f2b0-4851-aca0-d0fa3f548874",
@@ -301,23 +217,50 @@ export function useCapster(): CapsterState {
 }
 
 export const capsterActions = {
-  login(payload: string | { id?: string; name: string; role?: string; barbershopId?: string; shiftId?: string }) {
+  login(
+    payload:
+      | string
+      | {
+          id?: string;
+          userId?: string;
+          name: string;
+          role?: string;
+          barbershopId?: string;
+          shiftId?: string;
+        },
+  ) {
     if (typeof payload === "string") {
-      setState({ isLoggedIn: true, capsterName: payload });
+      setState({
+        isLoggedIn: true,
+        capsterName: payload,
+        dashboardMetrics: EMPTY_METRICS,
+      });
     } else {
+      const isSwitchingCapster =
+        Boolean(payload.id && state.capsterId && payload.id !== state.capsterId);
       setState({
         isLoggedIn: true,
         capsterName: payload.name,
         capsterRole: payload.role ?? state.capsterRole,
         capsterId: payload.id ?? state.capsterId,
+        userId: payload.userId ?? state.userId,
         barbershopId: payload.barbershopId ?? state.barbershopId,
-        shiftId: payload.shiftId ?? state.shiftId,
+        shiftId: payload.shiftId ?? (isSwitchingCapster ? null : state.shiftId),
+        dashboardMetrics: isSwitchingCapster ? EMPTY_METRICS : state.dashboardMetrics,
       });
     }
   },
 
   logout() {
-    setState({ isLoggedIn: false });
+    setState({
+      isLoggedIn: false,
+      capsterId: null,
+      userId: null,
+      shiftId: null,
+      capsterName: "",
+      dashboardMetrics: EMPTY_METRICS,
+      transactions: [],
+    });
   },
 
   setDashboardMetrics(metrics: DashboardMetrics) {

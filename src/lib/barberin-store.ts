@@ -213,6 +213,9 @@ export const actions = {
   setServiceExecutionStatus(status: ServiceExecutionStatus) {
     setState({ serviceExecutionStatus: status });
   },
+  setPaymentConfirmationStatus(status: PaymentConfirmationStatus) {
+    setState({ paymentConfirmationStatus: status });
+  },
   startWaitingConfirmation() {
     setState({ transactionStatus: "WAITING_CONFIRMATION" });
   },

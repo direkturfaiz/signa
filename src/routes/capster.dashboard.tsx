@@ -28,12 +28,17 @@ export const Route = createFileRoute("/capster/dashboard")({
 
 function CapsterDashboardPage() {
   const navigate = useNavigate();
-  const { capsterName, dashboardMetrics, shiftId } = useCapster();
+  const { capsterId, userId, capsterName, dashboardMetrics, shiftId } = useCapster();
   const [showEndShiftModal, setShowEndShiftModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    getDashboardMetrics()
+    getDashboardMetrics({
+      data: {
+        capsterId: capsterId ?? undefined,
+        userId: userId ?? undefined,
+      },
+    })
       .then((metrics) => {
         if (!mounted) return;
         capsterActions.setDashboardMetrics(metrics);
@@ -43,7 +48,7 @@ function CapsterDashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [capsterId, userId]);
 
   const handleEndShiftConfirm = async () => {
     if (shiftId) {

@@ -34,22 +34,33 @@ function PaymentConfirmationPage() {
   const [confirming, setConfirming] = useState(false);
   const total = cartTotal(cartItems);
 
-  // Poll for Capster confirmation in background
+  // Verify and poll for Capster confirmation in background
   useEffect(() => {
-    if (!transactionId) return;
+    if (!transactionId) {
+      navigate({ to: "/customer/service-execution" });
+      return;
+    }
     let mounted = true;
     const poll = async () => {
       try {
         const detail = await getTransactionDetail({ data: { transactionId } });
         if (!mounted || !detail) return;
-        if (detail.status === "paid") {
-          actions.confirmPayment();
-          navigate({ to: "/customer/success" });
+
+        // Jika transaksi belum dibayar / belum dikonfirmasi oleh capster,
+        // customer tidak boleh masuk ke halaman konfirmasi pembayaran sebelum waktunya.
+        if (detail.status !== "paid" && detail.paymentStatus !== "success") {
+          actions.setPaymentConfirmationStatus("MENUNGGU");
+          navigate({ to: "/customer/service-execution" });
+          return;
         }
+
+        actions.setPaymentConfirmationStatus("DIKONFIRMASI");
       } catch (e) {
         console.error("Polling error:", e);
       }
     };
+
+    poll();
     const id = setInterval(poll, 3000);
     return () => {
       mounted = false;
