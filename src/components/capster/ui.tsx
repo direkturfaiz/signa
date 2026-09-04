@@ -16,19 +16,24 @@ import {
   Scissors,
   User,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/format";
 import { BarberinLogo, GlassCard } from "@/components/barberin/ui";
-import type {
-  CapsterService,
-  CapsterTransaction,
-  ShiftInfo,
-  TransactionStatus,
+import {
+  capsterActions,
+  useCapster,
+  type CapsterService,
+  type CapsterTransaction,
+  type ShiftInfo,
+  type TransactionStatus,
 } from "@/lib/capster-store";
+import { getCapsterTransactions } from "@/lib/capster-transactions";
 
 // Header Capster
 export function CapsterHeader({
@@ -45,6 +50,58 @@ export function CapsterHeader({
   showActions?: boolean;
 }) {
   const router = useRouter();
+  const { transactions } = useCapster();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const prevPendingCountRef = useRef<number | null>(null);
+
+  // Filter transaksi yang sedang menunggu konfirmasi pembayaran
+  const pendingTransactions = transactions.filter((t) => t.status === "Menunggu");
+  const pendingCount = pendingTransactions.length;
+
+  // Background polling agar notifikasi selalu realtime di semua halaman capster
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchPending = async () => {
+      try {
+        const data = await getCapsterTransactions();
+        if (!mounted || !data) return;
+        capsterActions.setTransactions(data as CapsterTransaction[]);
+      } catch {
+        // silent error on background poll
+      }
+    };
+
+    fetchPending();
+    const interval = setInterval(fetchPending, 3500);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Notifikasi Toast ketika ada transaksi baru yang masuk dan butuh konfirmasi
+  useEffect(() => {
+    if (prevPendingCountRef.current !== null && pendingCount > prevPendingCountRef.current) {
+      const latest = pendingTransactions[0];
+      if (latest) {
+        toast.info("Permintaan Konfirmasi Pembayaran", {
+          description: `${latest.customerName} meminta konfirmasi (${formatRupiah(latest.total)})`,
+          action: {
+            label: "Konfirmasi",
+            onClick: () => {
+              router.navigate({
+                to: "/capster/transactions/$transactionId",
+                params: { transactionId: latest.id },
+              });
+            },
+          },
+          duration: 7000,
+        });
+      }
+    }
+    prevPendingCountRef.current = pendingCount;
+  }, [pendingCount, pendingTransactions, router]);
 
   return (
     <header className="glass-3 safe-top sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-x-0 border-t-0 px-4 pb-3">
@@ -74,12 +131,28 @@ export function CapsterHeader({
             <button
               type="button"
               aria-label="Notifikasi"
-              className="glass-1 relative flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors active:bg-white/15"
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={cn(
+                "glass-1 relative flex h-10 w-10 items-center justify-center rounded-[12px] transition-all active:scale-[0.95]",
+                pendingCount > 0 && "ring-1 ring-warning/40",
+                showNotifications && "bg-white/20",
+              )}
             >
-              <Bell className="h-4 w-4 text-primary-soft" strokeWidth={2} />
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
-                3
-              </span>
+              <Bell
+                className={cn(
+                  "h-4 w-4 transition-colors",
+                  pendingCount > 0 ? "text-warning" : "text-primary-soft",
+                )}
+                strokeWidth={2}
+              />
+              {pendingCount > 0 ? (
+                <>
+                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white shadow-sm">
+                    {pendingCount > 9 ? "9+" : pendingCount}
+                  </span>
+                  <span className="absolute -right-1 -top-1 h-4 w-4 animate-ping rounded-full bg-danger/50 pointer-events-none" />
+                </>
+              ) : null}
             </button>
             <Link
               to="/capster/login"
@@ -93,6 +166,130 @@ export function CapsterHeader({
           <div className="h-10 w-10 shrink-0" aria-hidden />
         )}
       </div>
+
+      {/* Popover / Panel Notifikasi Realtime */}
+      {showNotifications && (
+        <>
+          {/* Backdrop transparan untuk menutup saat klik luar */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+            onClick={() => setShowNotifications(false)}
+          />
+
+          {/* Dialog Notifikasi */}
+          <div className="absolute left-3 right-3 top-[calc(100%+6px)] z-50 rounded-[20px] border border-white/15 bg-[#0F172A]/95 p-4 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-warning/20 text-warning">
+                  <Bell className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-[14px] font-bold text-foreground">
+                      Konfirmasi Pembayaran
+                    </h3>
+                    {pendingCount > 0 && (
+                      <span className="rounded-full bg-warning/20 px-1.5 py-0.2 text-[10px] font-bold text-warning ring-1 ring-warning/30">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Permintaan pembayaran yang perlu dikonfirmasi
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Tutup notifikasi"
+                onClick={() => setShowNotifications(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-muted-foreground hover:text-foreground active:scale-[0.95]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto pr-0.5">
+              {pendingCount === 0 ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  <CheckCircle2 className="mx-auto h-7 w-7 text-success/70 mb-1.5" />
+                  <p className="text-[13px] font-semibold text-foreground">
+                    Tidak Ada Permintaan
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Semua pembayaran saat ini sudah dikonfirmasi.
+                  </p>
+                </div>
+              ) : (
+                pendingTransactions.map((trx) => (
+                  <button
+                    key={trx.id}
+                    type="button"
+                    onClick={() => {
+                      setShowNotifications(false);
+                      router.navigate({
+                        to: "/capster/transactions/$transactionId",
+                        params: { transactionId: trx.id },
+                      });
+                    }}
+                    className="w-full text-left glass-2 rounded-[14px] p-3 border border-white/5 space-y-1.5 transition-all hover:bg-white/10 active:scale-[0.99]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-mono text-[11px] font-bold text-primary-soft truncate">
+                          #{trx.id.length > 12 ? `${trx.id.slice(0, 12)}...` : trx.id}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">• {trx.time}</span>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning ring-1 ring-warning/30">
+                        <Clock className="h-2.5 w-2.5" />
+                        Menunggu
+                      </span>
+                    </div>
+
+                    <p className="truncate text-[13px] font-bold text-foreground">
+                      {trx.customerName}
+                    </p>
+
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {trx.serviceNames}
+                    </p>
+
+                    <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[12px]">
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                          {trx.paymentMethod}
+                        </span>
+                        <p className="font-bold text-[13px] text-foreground">
+                          {formatRupiah(trx.total)}
+                        </p>
+                      </div>
+                      <span className="flex h-6 items-center justify-center rounded-[8px] bg-primary/25 px-2.5 text-[11px] font-bold text-primary-soft ring-1 ring-primary/40">
+                        Konfirmasi &gt;
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            {pendingCount > 0 && (
+              <div className="mt-2.5 border-t border-white/10 pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNotifications(false);
+                    router.navigate({ to: "/capster/transactions" });
+                  }}
+                  className="text-[12px] font-semibold text-primary-soft hover:underline"
+                >
+                  Lihat Semua Transaksi &gt;
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </header>
   );
 }
