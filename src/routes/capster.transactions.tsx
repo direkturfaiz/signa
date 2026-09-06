@@ -194,7 +194,7 @@ function CapsterTransactionsPage() {
             className="shadow-[0_8px_24px_rgba(78,120,255,0.45)]"
           >
             <Plus className="h-5 w-5" strokeWidth={2.5} />
-            + BUAT TRANSAKSI
+            BUAT TRANSAKSI
           </PrimaryButton>
         </div>
 

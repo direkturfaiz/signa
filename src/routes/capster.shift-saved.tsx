@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Calendar, CheckCircle2, Clock, Database, RefreshCw } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Database, LogOut, RefreshCw } from "lucide-react";
 
 import {
   BottomActionBar,
   GlassCard,
   MobileShell,
   PrimaryButton,
+  SecondaryButton,
 } from "@/components/barberin/ui";
 import { CapsterHeader } from "@/components/capster/ui";
 import { capsterActions } from "@/lib/capster-store";
@@ -28,6 +29,11 @@ function ShiftSavedPage() {
     navigate({ to: "/capster/check-in" });
   };
 
+  const handleReturnToLogin = () => {
+    capsterActions.logout();
+    navigate({ to: "/capster/login" });
+  };
+
   return (
     <MobileShell>
       <CapsterHeader
@@ -36,7 +42,7 @@ function ShiftSavedPage() {
         showActions={false}
       />
 
-      <main className="flex-1 space-y-4 px-4 pb-28 pt-4">
+      <main className="flex-1 space-y-4 px-4 pb-36 pt-4">
         <div className="flex flex-col items-center text-center space-y-2 py-3">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/20 text-success ring-1 ring-success/40">
             <CheckCircle2 className="h-9 w-9" strokeWidth={2.2} />
@@ -97,6 +103,10 @@ function ShiftSavedPage() {
           <RefreshCw className="h-4 w-4" strokeWidth={2} />
           KEMBALI KE CHECK IN SHIFT
         </PrimaryButton>
+        <SecondaryButton onClick={handleReturnToLogin}>
+          <LogOut className="h-4 w-4" strokeWidth={2} />
+          KEMBALI KE HALAMAN LOGIN
+        </SecondaryButton>
       </BottomActionBar>
     </MobileShell>
   );

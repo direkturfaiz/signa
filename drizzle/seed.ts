@@ -129,6 +129,7 @@ async function seed() {
         .insert(users)
         .values({
           email: c.email,
+          password: "password",
           nama_lengkap: c.name,
           no_hp: c.phone,
           role: "capster",

@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  ArrowLeft,
+  CheckCircle,
   FileText,
   Phone,
   Receipt,
   Scissors,
   User,
   Wallet,
-  CheckCircle,
 } from "lucide-react";
 
 import {
@@ -123,7 +124,7 @@ function CapsterTransactionDetailPage() {
   if (loading) {
     return (
       <MobileShell>
-        <CapsterHeader title="Detail Transaksi" backTo="/capster/transactions" showBack={true} />
+        <CapsterHeader title="Detail Transaksi" backTo="/capster/dashboard" showBack={true} />
         <main className="flex-1 space-y-3 p-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -135,12 +136,12 @@ function CapsterTransactionDetailPage() {
   if (!trx) {
     return (
       <MobileShell>
-        <CapsterHeader title="Detail Transaksi" backTo="/capster/transactions" showBack={true} />
+        <CapsterHeader title="Detail Transaksi" backTo="/capster/dashboard" showBack={true} />
         <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <p className="text-muted-foreground">Transaksi tidak ditemukan.</p>
           <div className="mt-4 w-full max-w-[200px]">
-            <PrimaryButton onClick={() => navigate({ to: "/capster/transactions" })}>
-              Kembali ke Daftar
+            <PrimaryButton onClick={() => navigate({ to: "/capster/dashboard" })}>
+              Kembali ke Dashboard
             </PrimaryButton>
           </div>
         </main>
@@ -153,7 +154,7 @@ function CapsterTransactionDetailPage() {
       <CapsterHeader
         title="Detail Transaksi"
         subtitle={`#${trx.id}`}
-        backTo="/capster/transactions"
+        backTo="/capster/dashboard"
         showBack={true}
         showActions={false}
       />
@@ -274,26 +275,24 @@ function CapsterTransactionDetailPage() {
             <SecondaryButton
               onClick={() =>
                 navigate({
-                  to: "/capster/transactions/$transactionId/receipt",
-                  params: { transactionId: trx.id },
+                  to: "/capster/dashboard",
                 })
               }
             >
-              <Receipt className="h-4 w-4" strokeWidth={2} />
-              LIHAT STRUK
+              <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+              KEMBALI KE DASHBOARD
             </SecondaryButton>
           </div>
         ) : (
           <PrimaryButton
             onClick={() =>
               navigate({
-                to: "/capster/transactions/$transactionId/receipt",
-                params: { transactionId: trx.id },
+                to: "/capster/dashboard",
               })
             }
           >
-            <Receipt className="h-4 w-4" strokeWidth={2} />
-            LIHAT STRUK
+            <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+            KEMBALI KE DASHBOARD
           </PrimaryButton>
         )}
       </BottomActionBar>

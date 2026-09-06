@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Lock, User } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   BarberinLogo,
@@ -23,18 +24,20 @@ export const Route = createFileRoute("/capster/login")({
 
 function CapsterLoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("budi@barberin.test");
-  const [password, setPassword] = useState("••••••••");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     setLoading(true);
     try {
       const res = await loginCapster({
-        data: { emailOrName: username },
+        data: { emailOrName: username, password },
       });
       capsterActions.login({
         id: res.id_capster,
@@ -45,22 +48,13 @@ function CapsterLoginPage() {
       });
       setLoading(false);
       navigate({ to: "/capster/check-in" });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      const isAndi =
-        username.toLowerCase().includes("andi") || username.includes("002");
-      capsterActions.login({
-        id: isAndi
-          ? "8b020274-d637-4d0f-b454-b8d387338865"
-          : "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
-        userId: isAndi
-          ? "3680f0ba-7d0d-4908-9237-de26c9f5e136"
-          : "f6c60035-fbc2-4e17-9fc2-015e7f478b94",
-        name: isAndi ? "Andi" : "Budi",
-        role: isAndi ? "Barber" : "Senior Barber",
-      });
+      const msg =
+        err?.message || "Email/username atau password yang Anda masukkan salah.";
+      setErrorMessage(msg);
+      toast.error("Gagal Login", { description: msg });
       setLoading(false);
-      navigate({ to: "/capster/check-in" });
     }
   };
 
@@ -84,43 +78,17 @@ function CapsterLoginPage() {
 
         <GlassCard className="p-5">
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="username" className="block text-[13px] font-semibold text-foreground">
-                  Email / Username
-                </label>
-                <div className="flex items-center gap-1.5 text-[11px]">
-                  <span className="text-muted-foreground">Pilih Cepat:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUsername("andi@barberin.test");
-                      setPassword("password");
-                    }}
-                    className={`rounded px-2 py-0.5 font-semibold transition-all ${
-                      username.toLowerCase().includes("andi")
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-white/10 text-muted-foreground hover:text-foreground hover:bg-white/15"
-                    }`}
-                  >
-                    Andi
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUsername("budi@barberin.test");
-                      setPassword("password");
-                    }}
-                    className={`rounded px-2 py-0.5 font-semibold transition-all ${
-                      username.toLowerCase().includes("budi")
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-white/10 text-muted-foreground hover:text-foreground hover:bg-white/15"
-                    }`}
-                  >
-                    Budi
-                  </button>
-                </div>
+            {errorMessage ? (
+              <div className="flex items-start gap-2.5 rounded-[12px] border border-danger/40 bg-danger/15 p-3 text-[13px] text-danger animate-in fade-in duration-200">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
               </div>
+            ) : null}
+
+            <div className="space-y-1.5">
+              <label htmlFor="username" className="block text-[13px] font-semibold text-foreground">
+                Email / Username
+              </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3.5 text-muted-foreground">
                   <User className="h-4 w-4" strokeWidth={2} />
@@ -130,8 +98,11 @@ function CapsterLoginPage() {
                   type="text"
                   required
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Masukkan email / username (contoh: andi@barberin.test)"
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  placeholder="Masukkan email / nama capster"
                   className="min-h-[48px] w-full rounded-[12px] border border-white/16 bg-white/8 pl-10 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary-soft"
                 />
               </div>
@@ -150,7 +121,10 @@ function CapsterLoginPage() {
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="Masukkan password"
                   className="min-h-[48px] w-full rounded-[12px] border border-white/16 bg-white/8 pl-10 pr-11 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary-soft"
                 />

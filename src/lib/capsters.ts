@@ -75,9 +75,17 @@ export const getCapsters = createServerFn({
 export const loginCapster = createServerFn({
   method: "POST",
 })
-  .validator((data: { emailOrName: string }) => data)
+  .validator((data: { emailOrName: string; password?: string }) => data)
   .handler(async ({ data }) => {
-    const term = data.emailOrName.trim().toLowerCase();
+    const term = (data.emailOrName || "").trim().toLowerCase();
+    const inputPassword = data.password || "";
+
+    if (!term) {
+      throw new Error("Email atau username wajib diisi.");
+    }
+    if (!inputPassword) {
+      throw new Error("Password wajib diisi.");
+    }
 
     // Query active capsters
     const all = await db
@@ -87,6 +95,7 @@ export const loginCapster = createServerFn({
         id_barbershop: capster.id_barbershop,
         nama_lengkap: users.nama_lengkap,
         email: users.email,
+        password: users.password,
         no_pegawai: capster.no_pegawai,
       })
       .from(capster)
@@ -95,22 +104,27 @@ export const loginCapster = createServerFn({
 
     const matched = all.find(
       (c) =>
-        c.nama_lengkap.toLowerCase().includes(term) ||
-        c.email.toLowerCase().includes(term) ||
-        (c.no_pegawai && c.no_pegawai.toLowerCase().includes(term)) ||
+        c.email.toLowerCase() === term ||
+        c.nama_lengkap.toLowerCase() === term ||
+        (c.no_pegawai && c.no_pegawai.toLowerCase() === term) ||
+        c.email.toLowerCase().startsWith(term) ||
         term.includes(c.nama_lengkap.toLowerCase()),
     );
 
-    const target = matched ?? all[0];
-    if (!target) {
-      throw new Error("Akun capster tidak ditemukan.");
+    if (!matched) {
+      throw new Error("Akun capster dengan email atau username tersebut tidak ditemukan.");
+    }
+
+    const expectedPassword = matched.password || "password";
+    if (inputPassword !== expectedPassword) {
+      throw new Error("Password yang Anda masukkan salah.");
     }
 
     return {
-      id_capster: target.id_capster,
-      id_user: target.id_user,
-      id_barbershop: target.id_barbershop,
-      nama_lengkap: target.nama_lengkap,
-      role: target.no_pegawai === "CAP-001" ? "Senior Barber" : "Barber",
+      id_capster: matched.id_capster,
+      id_user: matched.id_user,
+      id_barbershop: matched.id_barbershop,
+      nama_lengkap: matched.nama_lengkap,
+      role: matched.no_pegawai === "CAP-001" ? "Senior Barber" : "Barber",
     };
   });
