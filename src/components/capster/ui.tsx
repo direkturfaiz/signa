@@ -156,10 +156,11 @@ export function CapsterHeader({
             </button>
             <Link
               to="/capster/login"
-              aria-label="Profil Capster"
+              onClick={() => capsterActions.logout()}
+              aria-label="Keluar"
               className="glass-1 flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors active:bg-white/15"
             >
-              <User className="h-4 w-4 text-primary-soft" strokeWidth={2} />
+              <LogOut className="h-4 w-4 text-primary-soft" strokeWidth={2} />
             </Link>
           </>
         ) : (
