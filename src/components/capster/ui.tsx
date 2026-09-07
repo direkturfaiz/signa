@@ -23,6 +23,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
 import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { BarberinLogo, GlassCard } from "@/components/barberin/ui";
 import {
