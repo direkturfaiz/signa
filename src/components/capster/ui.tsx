@@ -20,7 +20,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -171,6 +171,53 @@ function SwipeableNotificationCard({
   );
 }
 
+// Persistent dismissed notification storage
+const getDismissedNotifStorageKey = (capsterId?: string | null) =>
+  `barberin_dismissed_notif_${capsterId || "global"}`;
+
+const getStoredDismissedIds = (capsterId?: string | null): string[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(getDismissedNotifStorageKey(capsterId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveStoredDismissedIds = (ids: string[], capsterId?: string | null) => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getDismissedNotifStorageKey(capsterId), JSON.stringify(ids));
+  } catch {}
+};
+
+// Session toasted transactions storage (so a toast is not shown repeatedly in a session)
+const getSessionToastedStorageKey = (capsterId?: string | null) =>
+  `barberin_toasted_trx_${capsterId || "global"}`;
+
+const getSessionToastedIds = (capsterId?: string | null): Set<string> => {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = sessionStorage.getItem(getSessionToastedStorageKey(capsterId));
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const saveSessionToastedId = (id: string, capsterId?: string | null) => {
+  if (typeof window === "undefined") return;
+  try {
+    const set = getSessionToastedIds(capsterId);
+    set.add(id);
+    sessionStorage.setItem(
+      getSessionToastedStorageKey(capsterId),
+      JSON.stringify(Array.from(set)),
+    );
+  } catch {}
+};
+
 // Header Capster
 export function CapsterHeader({
   title,
@@ -188,20 +235,19 @@ export function CapsterHeader({
   const router = useRouter();
   const { transactions, capsterId } = useCapster();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>([]);
-  const prevPendingCountRef = useRef<number | null>(null);
-
-  // Filter transaksi yang sedang menunggu konfirmasi pembayaran khusus capster yang sedang login
-  const pendingTransactions = transactions.filter(
-    (t) => t.status === "Menunggu" && (!capsterId || !t.capsterId || t.capsterId === capsterId),
+  const [headerPending, setHeaderPending] = useState<CapsterTransaction[]>([]);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() =>
+    getStoredDismissedIds(capsterId),
   );
-  // Notifikasi yang masih aktif (belum di-close/swipe oleh capster)
-  const visiblePendingTransactions = pendingTransactions.filter(
-    (t) => !dismissedNotifIds.includes(t.id),
-  );
-  const pendingCount = visiblePendingTransactions.length;
+  const prevPendingIdsRef = useRef<Set<string> | null>(null);
 
-  // Background polling agar notifikasi selalu realtime di semua halaman capster (terisolasi per capster)
+  // Sync dismissed IDs when capsterId changes
+  useEffect(() => {
+    setDismissedNotifIds(getStoredDismissedIds(capsterId));
+  }, [capsterId]);
+
+  // Background polling agar notifikasi selalu realtime di semua halaman capster
+  // CATATAN: Tidak memanggil capsterActions.setTransactions agar tidak menimpa state transaksi halaman aktif
   useEffect(() => {
     if (!capsterId) return;
     let mounted = true;
@@ -210,7 +256,8 @@ export function CapsterHeader({
       try {
         const data = await getCapsterTransactions({ data: { capsterId } });
         if (!mounted || !data) return;
-        capsterActions.setTransactions(data as CapsterTransaction[]);
+        const pending = (data as CapsterTransaction[]).filter((t) => t.status === "Menunggu");
+        setHeaderPending(pending);
       } catch {
         // silent error on background poll
       }
@@ -224,38 +271,115 @@ export function CapsterHeader({
     };
   }, [capsterId]);
 
-  // Notifikasi Toast ketika ada transaksi baru yang masuk dan butuh konfirmasi
-  useEffect(() => {
-    if (prevPendingCountRef.current !== null && pendingCount > prevPendingCountRef.current) {
-      const latest = visiblePendingTransactions[0];
-      if (latest) {
-        const toastId = `pending-toast-${latest.id}`;
-        toast.info("Permintaan Konfirmasi Pembayaran", {
-          id: toastId,
-          description: `${latest.customerName} meminta konfirmasi (${formatRupiah(latest.total)})`,
-          action: {
-            label: "Konfirmasi",
-            onClick: () => {
-              router.navigate({
-                to: "/capster/transactions/$transactionId",
-                params: { transactionId: latest.id },
-              });
-            },
-          },
-          cancel: {
-            label: "Tutup",
-            onClick: () => {
-              toast.dismiss(toastId);
-            },
-          },
-          closeButton: true,
-          dismissible: true,
-          duration: 9000,
-        });
+  // Gabungkan transaksi pending dari polling header dan transaksi dari store (deduplikasi by id)
+  const allPendingTransactions = useMemo(() => {
+    const map = new Map<string, CapsterTransaction>();
+    for (const t of transactions) {
+      if (t.status === "Menunggu" && (!capsterId || !t.capsterId || t.capsterId === capsterId)) {
+        map.set(t.id, t);
       }
     }
-    prevPendingCountRef.current = pendingCount;
-  }, [pendingCount, visiblePendingTransactions, router]);
+    for (const t of headerPending) {
+      if (t.status === "Menunggu" && (!capsterId || !t.capsterId || t.capsterId === capsterId)) {
+        map.set(t.id, t);
+      }
+    }
+    return Array.from(map.values());
+  }, [transactions, headerPending, capsterId]);
+
+  // Bersihkan ID dari dismissedNotifIds jika transaksi tersebut sudah dikonfirmasi atau dibatalkan
+  useEffect(() => {
+    if (dismissedNotifIds.length === 0 || allPendingTransactions.length === 0) return;
+    const activePendingIds = new Set(allPendingTransactions.map((t) => t.id));
+    const cleaned = dismissedNotifIds.filter((id) => activePendingIds.has(id));
+    if (cleaned.length !== dismissedNotifIds.length) {
+      setDismissedNotifIds(cleaned);
+      saveStoredDismissedIds(cleaned, capsterId);
+    }
+  }, [allPendingTransactions, dismissedNotifIds, capsterId]);
+
+  // Notifikasi yang masih aktif (belum di-close/swipe oleh capster)
+  const visiblePendingTransactions = useMemo(() => {
+    return allPendingTransactions.filter((t) => !dismissedNotifIds.includes(t.id));
+  }, [allPendingTransactions, dismissedNotifIds]);
+
+  const pendingCount = visiblePendingTransactions.length;
+
+  const handleDismiss = useCallback(
+    (id: string) => {
+      setDismissedNotifIds((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        saveStoredDismissedIds(next, capsterId);
+        return next;
+      });
+      saveSessionToastedId(id, capsterId);
+    },
+    [capsterId],
+  );
+
+  const handleClearDismissed = useCallback(() => {
+    setDismissedNotifIds([]);
+    saveStoredDismissedIds([], capsterId);
+  }, [capsterId]);
+
+  // Notifikasi Toast ketika ada transaksi baru yang masuk dan butuh konfirmasi
+  useEffect(() => {
+    const currentPendingIds = new Set(visiblePendingTransactions.map((t) => t.id));
+
+    // Pada render/mount pertama, rekam ID yang sudah ada agar tidak spam toast untuk transaksi lama saat halaman dibuka
+    if (prevPendingIdsRef.current === null) {
+      prevPendingIdsRef.current = currentPendingIds;
+      return;
+    }
+
+    const sessionToasted = getSessionToastedIds(capsterId);
+
+    // Cari transaksi baru yang belum pernah di-toast pada sesi ini dan belum di-dismiss
+    const newlyArrived = visiblePendingTransactions.filter(
+      (t) =>
+        !prevPendingIdsRef.current?.has(t.id) &&
+        !sessionToasted.has(t.id) &&
+        !dismissedNotifIds.includes(t.id),
+    );
+
+    if (newlyArrived.length > 0) {
+      const latest = newlyArrived[0];
+      const toastId = `pending-toast-${latest.id}`;
+
+      saveSessionToastedId(latest.id, capsterId);
+
+      toast.info("Permintaan Konfirmasi Pembayaran", {
+        id: toastId,
+        description: `${latest.customerName} meminta konfirmasi (${formatRupiah(latest.total)})`,
+        action: {
+          label: "Konfirmasi",
+          onClick: () => {
+            handleDismiss(latest.id);
+            router.navigate({
+              to: "/capster/transactions/$transactionId",
+              params: { transactionId: latest.id },
+            });
+          },
+        },
+        cancel: {
+          label: "Tutup",
+          onClick: () => {
+            handleDismiss(latest.id);
+            toast.dismiss(toastId);
+          },
+        },
+        onDismiss: () => {
+          handleDismiss(latest.id);
+        },
+        closeButton: true,
+        dismissible: true,
+        duration: 9000,
+      });
+    }
+
+    prevPendingIdsRef.current = currentPendingIds;
+  }, [visiblePendingTransactions, dismissedNotifIds, capsterId, router, handleDismiss]);
 
   return (
     <header className="glass-3 safe-top sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-x-0 border-t-0 px-4 pb-3">
@@ -379,7 +503,7 @@ export function CapsterHeader({
                   {dismissedNotifIds.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setDismissedNotifIds([])}
+                      onClick={handleClearDismissed}
                       className="mt-2.5 text-[11px] font-semibold text-primary-soft hover:underline"
                     >
                       Tampilkan Kembali ({dismissedNotifIds.length}) Notifikasi
@@ -393,13 +517,14 @@ export function CapsterHeader({
                     trx={trx}
                     onSelect={() => {
                       setShowNotifications(false);
+                      handleDismiss(trx.id);
                       router.navigate({
                         to: "/capster/transactions/$transactionId",
                         params: { transactionId: trx.id },
                       });
                     }}
                     onDismiss={(id) => {
-                      setDismissedNotifIds((prev) => [...prev, id]);
+                      handleDismiss(id);
                     }}
                   />
                 ))

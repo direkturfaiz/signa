@@ -27,6 +27,8 @@ export const Route = createFileRoute("/capster/transactions/today")({
 function TodayTransactionsPage() {
   const navigate = useNavigate();
   const { transactions, capsterId, dashboardMetrics } = useCapster();
+  const [todayTransactions, setTodayTransactions] = useState<CapsterTransaction[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [filter, setFilter] = useState<"Semua" | "Menunggu" | "Selesai" | "Batal">("Semua");
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +49,10 @@ function TodayTransactionsPage() {
           },
         });
         if (!mounted) return;
-        capsterActions.setTransactions(data as CapsterTransaction[]);
+        const list = (data as CapsterTransaction[]) || [];
+        setTodayTransactions(list);
+        setHasLoaded(true);
+        capsterActions.setTransactions(list);
       } catch (err) {
         console.error("Gagal memuat transaksi hari ini:", err);
       } finally {
@@ -66,7 +71,8 @@ function TodayTransactionsPage() {
     };
   }, [capsterId]);
 
-  const capsterTransactions = transactions.filter(
+  const baseList = hasLoaded ? todayTransactions : transactions;
+  const capsterTransactions = baseList.filter(
     (t) => !capsterId || !t.capsterId || t.capsterId === capsterId,
   );
 
