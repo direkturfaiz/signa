@@ -9,7 +9,7 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatCustomerId } from "@/lib/format";
 import {
   PAYMENT_METHODS,
   actions,
@@ -96,7 +96,9 @@ function PaymentPage() {
         <GlassCard className="space-y-1">
           <p className="text-[13px] text-muted-foreground">Pelanggan</p>
           <p className="text-[15px] font-semibold">{customerName || "-"}</p>
-          <p className="text-[12px] text-muted-foreground">ID: {customerId ?? "-"}</p>
+          <p className="text-[12px] text-muted-foreground font-mono">
+            ID: {customerId ? formatCustomerId(customerId) : "-"}
+          </p>
         </GlassCard>
 
         <p className="pt-2 text-[14px] text-muted-foreground">

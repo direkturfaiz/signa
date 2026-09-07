@@ -28,6 +28,7 @@ export type CapsterTransaction = {
   date: string;
   time: string;
   customerName: string;
+  customerId?: string;
   customerPhone?: string;
   notes?: string;
   items: { service: CapsterService; quantity: number }[];

@@ -23,8 +23,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { BarberinLogo, GlassCard } from "@/components/barberin/ui";
 import {
   capsterActions,
@@ -119,7 +118,7 @@ function SwipeableNotificationCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-mono text-[11px] font-bold text-primary-soft truncate">
-              #{trx.id.length > 12 ? `${trx.id.slice(0, 12)}...` : trx.id}
+              #{formatTransactionId(trx.id)}
             </span>
             <span className="text-[10px] text-muted-foreground shrink-0">• {trx.time}</span>
           </div>
@@ -754,7 +753,7 @@ export function UnconfirmedTransactionsSection({
               {/* Row 1: ID Transaksi & Waktu */}
               <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.06]">
                 <span className="font-mono text-[11px] font-semibold text-primary-soft/90 truncate max-w-[170px] sm:max-w-[210px]">
-                  #{trx.id.length > 14 ? `${trx.id.slice(0, 14)}...` : trx.id}
+                  #{formatTransactionId(trx.id)}
                 </span>
                 <span className="text-[11px] font-medium text-muted-foreground shrink-0 flex items-center gap-1">
                   <span>•</span>
@@ -932,7 +931,9 @@ export function CapsterTransactionCard({
       <GlassCard className="p-3.5 space-y-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <span className="font-mono text-[13px] font-bold text-primary-soft">#{trx.id}</span>
+            <span className="font-mono text-[13px] font-bold text-primary-soft">
+              #{formatTransactionId(trx.id)}
+            </span>
             <p className="text-[11px] text-muted-foreground">
               {trx.date} • {trx.time}
             </p>

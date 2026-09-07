@@ -9,7 +9,7 @@ import {
   SecondaryButton,
 } from "@/components/barberin/ui";
 import { CapsterHeader } from "@/components/capster/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { useCapster } from "@/lib/capster-store";
 
 export const Route = createFileRoute("/capster/transactions/success")({
@@ -59,7 +59,9 @@ function ManualTransactionSuccessPage() {
             <CheckCircle2 className="h-11 w-11" strokeWidth={2.2} />
           </div>
           <h2 className="text-[22px] font-extrabold text-foreground">Transaksi Berhasil!</h2>
-          <p className="font-mono text-[14px] font-bold text-primary-soft">#{trx.id}</p>
+          <p className="font-mono text-[14px] font-bold text-primary-soft">
+            #{formatTransactionId(trx.id, trx.date)}
+          </p>
           <p className="text-[12px] text-muted-foreground">
             {trx.date} • {trx.time}
           </p>

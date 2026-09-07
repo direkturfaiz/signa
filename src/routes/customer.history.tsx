@@ -12,7 +12,7 @@ import {
   SkeletonCard,
   StatusBadge,
 } from "@/components/barberin/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { useBarberin } from "@/lib/barberin-store";
 import { getCustomerTransactions } from "@/lib/bookings";
 
@@ -110,7 +110,11 @@ function CustomerHistoryPage() {
             >
               <GlassCard className="p-3.5 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <span className="font-mono font-bold text-primary-soft">
+                      #{formatTransactionId(item.id, item.date)}
+                    </span>
+                    <span>•</span>
                     <Clock className="h-3.5 w-3.5 text-primary-soft" strokeWidth={2} />
                     <span>{item.date} • {item.time}</span>
                   </div>

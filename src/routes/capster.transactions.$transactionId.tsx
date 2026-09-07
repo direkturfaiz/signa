@@ -22,7 +22,7 @@ import {
   SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId, formatCustomerId } from "@/lib/format";
 import { useCapster, type CapsterTransaction } from "@/lib/capster-store";
 import {
   confirmPaymentAndGenerateStruk,
@@ -81,6 +81,7 @@ function CapsterTransactionDetailPage() {
             minute: "2-digit",
           }),
           customerName: detail.customerName,
+          customerId: detail.customerId ?? storeTrx?.customerId,
           ...(detail.customerPhone ? { customerPhone: detail.customerPhone } : {}),
           items: detail.items.map((i) => ({
             service: {
@@ -197,7 +198,7 @@ function CapsterTransactionDetailPage() {
     <MobileShell>
       <CapsterHeader
         title="Detail Transaksi"
-        subtitle={`#${trx.id}`}
+        subtitle={`#${formatTransactionId(trx.id, trx.date)}`}
         backTo="/capster/dashboard"
         showBack={true}
         showActions={false}
@@ -207,7 +208,9 @@ function CapsterTransactionDetailPage() {
         {/* Status Header Card */}
         <GlassCard className="p-4 flex items-center justify-between">
           <div>
-            <span className="font-mono text-[14px] font-bold text-primary-soft">#{trx.id}</span>
+            <span className="font-mono text-[14px] font-bold text-primary-soft">
+              #{formatTransactionId(trx.id, trx.date)}
+            </span>
             <p className="text-[12px] text-muted-foreground">
               {trx.date} • {trx.time}
             </p>
@@ -226,6 +229,14 @@ function CapsterTransactionDetailPage() {
               <span className="text-muted-foreground">Nama</span>
               <span className="font-semibold text-foreground">{trx.customerName}</span>
             </div>
+            {trx.customerId ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">ID Pelanggan</span>
+                <span className="font-mono font-semibold text-primary-soft">
+                  {formatCustomerId(trx.customerId, trx.date)}
+                </span>
+              </div>
+            ) : null}
             {trx.customerPhone ? (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Nomor Telepon</span>

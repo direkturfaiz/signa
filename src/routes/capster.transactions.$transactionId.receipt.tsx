@@ -11,7 +11,7 @@ import {
   SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader } from "@/components/capster/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { useCapster, type CapsterTransaction } from "@/lib/capster-store";
 import { getTransactionDetail } from "@/lib/bookings";
 
@@ -55,7 +55,7 @@ async function downloadThermalPdf(trx: CapsterTransaction) {
   };
 
   doc.setFontSize(9);
-  row("No. Transaksi", `#${trx.id}`, true);
+  row("No. Transaksi", `#${formatTransactionId(trx.id, trx.date)}`, true);
   row("Tanggal", trx.date);
   row("Waktu", trx.time);
   row("Pelanggan", trx.customerName);
@@ -105,7 +105,7 @@ async function downloadThermalPdf(trx: CapsterTransaction) {
   doc.setFontSize(8);
   doc.text("Terima kasih! Silakan datang kembali.", 150, y, { align: "center" });
 
-  doc.save(`STRUK-${trx.id}.pdf`);
+  doc.save(`STRUK-${formatTransactionId(trx.id, trx.date)}.pdf`);
 }
 
 function CapsterReceiptPage() {
@@ -215,7 +215,7 @@ function CapsterReceiptPage() {
       "Jl. Contoh No. 123, Purbalingga",
       "Telp. 0812-3456-7890",
       "-------------------------",
-      `No. Transaksi : #${trx.id}`,
+      `No. Transaksi : #${formatTransactionId(trx.id, trx.date)}`,
       `Tanggal       : ${trx.date}`,
       `Waktu         : ${trx.time}`,
       `Pelanggan     : ${trx.customerName}`,
@@ -231,7 +231,7 @@ function CapsterReceiptPage() {
 
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: `Struk BARBERIN #${trx.id}`, text });
+        await navigator.share({ title: `Struk BARBERIN #${formatTransactionId(trx.id, trx.date)}`, text });
         setShareMsg("Struk siap dibagikan.");
       } else if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(text);
@@ -246,7 +246,7 @@ function CapsterReceiptPage() {
     <MobileShell>
       <CapsterHeader
         title="Struk Transaksi"
-        subtitle={`#${trx.id}`}
+        subtitle={`#${formatTransactionId(trx.id, trx.date)}`}
         backTo="/capster/transactions"
         showBack={true}
         showActions={false}
@@ -274,7 +274,7 @@ function CapsterReceiptPage() {
           <div className="space-y-1 text-[11px]">
             <div className="flex justify-between">
               <span className="text-muted-foreground">No. Transaksi</span>
-              <span className="font-bold text-primary-soft">#{trx.id}</span>
+              <span className="font-bold text-primary-soft">#{formatTransactionId(trx.id, trx.date)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tanggal</span>

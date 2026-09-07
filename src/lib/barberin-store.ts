@@ -247,19 +247,19 @@ function seq(): string {
   return String(n);
 }
 
-function ymd(): string {
+function yymm(): string {
   const d = new Date();
   return (
-    String(d.getFullYear()).slice(2) +
-    String(d.getMonth() + 1).padStart(2, "0") +
-    String(d.getDate()).padStart(2, "0")
+    String(d.getFullYear()).slice(-2) +
+    String(d.getMonth() + 1).padStart(2, "0")
   );
 }
 
 export function generateCustomerId(): string {
-  return `PLG${ymd()}${seq()}`;
+  return `PLG-${yymm()}-${seq()}`;
 }
 
 export function generateTransactionId(): string {
-  return `TRX${ymd()}${seq()}`;
+  return `TRX-${yymm()}-${seq()}`;
 }
+

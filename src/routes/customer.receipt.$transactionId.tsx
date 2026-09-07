@@ -14,7 +14,7 @@ import {
   SkeletonCard,
   StatusBadge,
 } from "@/components/barberin/ui";
-import { formatRupiah, formatTanggal, formatWaktu } from "@/lib/format";
+import { formatRupiah, formatTanggal, formatWaktu, formatTransactionId, formatCustomerId } from "@/lib/format";
 import { paymentMethodName, useBarberin, type ReceiptData, type PaymentMethodId } from "@/lib/barberin-store";
 import { getTransactionDetail } from "@/lib/bookings";
 
@@ -53,8 +53,8 @@ async function generatePdf(receipt: ReceiptData) {
   };
 
   doc.setFontSize(10);
-  row("ID Transaksi", receipt.transactionId);
-  row("ID Pelanggan", receipt.customerId);
+  row("ID Transaksi", formatTransactionId(receipt.transactionId, receipt.createdAt));
+  row("ID Pelanggan", formatCustomerId(receipt.customerId, receipt.createdAt));
   row("Nama", receipt.customerName);
   if (receipt.capster) {
     row("Capster", `${receipt.capster.name} — ${receipt.capster.role}`);
@@ -227,8 +227,8 @@ function ReceiptPage() {
           </div>
 
           <div className="space-y-2">
-            <InfoRow label="ID Transaksi" value={receiptData.transactionId} />
-            <InfoRow label="ID Pelanggan" value={receiptData.customerId} />
+            <InfoRow label="ID Transaksi" value={formatTransactionId(receiptData.transactionId, receiptData.createdAt)} />
+            <InfoRow label="ID Pelanggan" value={formatCustomerId(receiptData.customerId, receiptData.createdAt)} />
             <InfoRow label="Nama" value={receiptData.customerName} />
             {receiptData.capster ? (
               <>

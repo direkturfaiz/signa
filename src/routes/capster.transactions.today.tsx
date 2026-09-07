@@ -10,7 +10,7 @@ import {
   SkeletonCard,
 } from "@/components/barberin/ui";
 import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { capsterActions, useCapster, type CapsterTransaction } from "@/lib/capster-store";
 import { getCapsterTransactions } from "@/lib/capster-transactions";
 
@@ -161,7 +161,10 @@ function TodayTransactionsPage() {
               <GlassCard className="p-3.5 flex items-center justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-primary-soft">
+                    <span className="font-mono text-[11px] font-bold text-primary-soft">
+                      #{formatTransactionId(trx.id, trx.date)}
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="h-3 w-3" strokeWidth={2} />
                       {trx.time}
                     </span>

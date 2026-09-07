@@ -11,6 +11,7 @@ import {
 } from "@/components/barberin/ui";
 import { actions, useBarberin } from "@/lib/barberin-store";
 import { getOrCreateCustomer } from "@/lib/bookings";
+import { formatCustomerId } from "@/lib/format";
 
 export const Route = createFileRoute("/customer/customer-info")({
   head: () => ({
@@ -103,7 +104,7 @@ function CustomerInfoPage() {
             {customerId ? (
               <>
                 {" "}
-                ID Anda: <span className="font-semibold text-foreground">{customerId}</span>
+                ID Anda: <span className="font-mono font-semibold text-foreground">{formatCustomerId(customerId)}</span>
               </>
             ) : null}
           </p>

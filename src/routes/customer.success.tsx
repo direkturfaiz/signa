@@ -15,7 +15,7 @@ import {
   StatusBadge,
   SuccessState,
 } from "@/components/barberin/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatTransactionId, formatCustomerId } from "@/lib/format";
 import { paymentMethodName, useBarberin, type ReceiptData, type PaymentMethodId } from "@/lib/barberin-store";
 import { getTransactionDetail } from "@/lib/bookings";
 
@@ -109,8 +109,8 @@ function SuccessPage() {
         </div>
 
         <GlassCard className="space-y-3">
-          <InfoRow label="ID Transaksi" value={receiptData.transactionId} />
-          <InfoRow label="ID Pelanggan" value={receiptData.customerId} />
+          <InfoRow label="ID Transaksi" value={formatTransactionId(receiptData.transactionId)} />
+          <InfoRow label="ID Pelanggan" value={formatCustomerId(receiptData.customerId)} />
           <InfoRow label="Nama" value={receiptData.customerName} />
           {receiptData.capster ? (
             <InfoRow label="Capster" value={receiptData.capster.name} />

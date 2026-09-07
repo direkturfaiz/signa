@@ -217,6 +217,7 @@ export const getCapsterTransactions = createServerFn({
           minute: "2-digit",
         }),
         customerName: r.customerName,
+        customerId: r.id_pelanggan,
         customerPhone: r.customerPhone ?? undefined,
         items,
         serviceNames,
