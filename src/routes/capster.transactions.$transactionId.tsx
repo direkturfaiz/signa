@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
   CheckCircle,
   FileText,
@@ -10,6 +11,7 @@ import {
   User,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   BottomActionBar,
@@ -40,7 +42,7 @@ export const Route = createFileRoute("/capster/transactions/$transactionId")({
 function CapsterTransactionDetailPage() {
   const navigate = useNavigate();
   const { transactionId } = Route.useParams();
-  const { transactions } = useCapster();
+  const { transactions, capsterId: loggedInCapsterId } = useCapster();
 
   const storeTrx = transactions.find((t) => t.id === transactionId);
   const [trx, setTrx] = useState<CapsterTransaction | null>(storeTrx ?? null);
@@ -85,7 +87,7 @@ function CapsterTransactionDetailPage() {
           cashReceived: detail.total,
           change: 0,
           status: detail.status === "paid" ? "Selesai" : "Menunggu",
-          capsterId: "",
+          capsterId: detail.capsterId ?? storeTrx?.capsterId ?? "",
           capsterName: detail.capsterName,
         };
         setTrx(mapped);
@@ -110,12 +112,19 @@ function CapsterTransactionDetailPage() {
   const handleConfirmPayment = async () => {
     setConfirming(true);
     try {
-      await confirmPaymentAndGenerateStruk({ data: { transactionId } });
+      await confirmPaymentAndGenerateStruk({
+        data: {
+          transactionId,
+          ...(loggedInCapsterId ? { capsterId: loggedInCapsterId } : {}),
+        },
+      });
       if (trx) {
         setTrx({ ...trx, status: "Selesai" });
       }
-    } catch (err) {
+      toast.success("Pembayaran berhasil dikonfirmasi!");
+    } catch (err: any) {
       console.error("Gagal mengonfirmasi pembayaran:", err);
+      toast.error(err?.message || "Gagal mengonfirmasi pembayaran");
     } finally {
       setConfirming(false);
     }
@@ -128,6 +137,28 @@ function CapsterTransactionDetailPage() {
         <main className="flex-1 space-y-3 p-4">
           <SkeletonCard />
           <SkeletonCard />
+        </main>
+      </MobileShell>
+    );
+  }
+
+  if (trx && loggedInCapsterId && trx.capsterId && trx.capsterId !== loggedInCapsterId) {
+    return (
+      <MobileShell>
+        <CapsterHeader title="Akses Ditolak" backTo="/capster/dashboard" showBack={true} />
+        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/20 text-danger ring-1 ring-danger/40">
+            <AlertCircle className="h-7 w-7" />
+          </div>
+          <h2 className="text-[18px] font-bold text-foreground">Akses Transaksi Ditolak</h2>
+          <p className="text-[13px] text-muted-foreground leading-relaxed">
+            Transaksi ini milik capster lain. Anda tidak berhak melihat atau mengonfirmasi transaksi ini.
+          </p>
+          <div className="pt-2 w-full max-w-[200px]">
+            <PrimaryButton onClick={() => navigate({ to: "/capster/dashboard" })}>
+              Kembali ke Dashboard
+            </PrimaryButton>
+          </div>
         </main>
       </MobileShell>
     );

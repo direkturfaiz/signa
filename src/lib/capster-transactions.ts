@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   barbershop,
@@ -46,7 +46,30 @@ export const getCapsterTransactions = createServerFn({
     ) => data,
   )
   .handler(async ({ data }) => {
-    let query = db
+    const targetCapsterId = data?.capsterId?.trim();
+    if (!targetCapsterId) {
+      return [];
+    }
+
+    const conditions = [
+      or(
+        eq(booking.id_capster, targetCapsterId),
+        and(isNull(transaksi.id_booking), eq(shiftCapster.id_capster, targetCapsterId)),
+        eq(shiftCapster.id_capster, targetCapsterId),
+      ),
+    ];
+
+    if (data?.todayOnly) {
+      const jakartaDateStr = new Date().toLocaleDateString("en-CA", {
+        timeZone: "Asia/Jakarta",
+      });
+      const startOfToday = new Date(`${jakartaDateStr}T00:00:00+07:00`);
+      const endOfToday = new Date(`${jakartaDateStr}T23:59:59.999+07:00`);
+      conditions.push(gte(transaksi.created_at, startOfToday));
+      conditions.push(lte(transaksi.created_at, endOfToday));
+    }
+
+    const rows = await db
       .select({
         id: transaksi.id_transaksi,
         id_booking: transaksi.id_booking,
@@ -63,34 +86,18 @@ export const getCapsterTransactions = createServerFn({
       .from(transaksi)
       .innerJoin(pelanggan, eq(transaksi.id_pelanggan, pelanggan.id_pelanggan))
       .innerJoin(users, eq(pelanggan.id_user, users.id_user))
+      .leftJoin(booking, eq(transaksi.id_booking, booking.id_booking))
+      .leftJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
+      .where(and(...conditions))
       .orderBy(desc(transaksi.created_at));
 
-    const rows = await query;
     if (rows.length === 0) return [];
 
-    // Filter today if requested
-    const filteredRows = data?.todayOnly
-      ? rows.filter((r) => {
-          const today = new Date();
-          const txDate = new Date(r.created_at);
-          return (
-            txDate.getDate() === today.getDate() &&
-            txDate.getMonth() === today.getMonth() &&
-            txDate.getFullYear() === today.getFullYear()
-          );
-        })
-      : rows;
-
-    if (filteredRows.length === 0) return [];
-
-    const txIds = filteredRows.map((r) => r.id);
+    const filteredRows = rows;
     const bookingIds = filteredRows
       .map((r) => r.id_booking)
       .filter((b): b is string => Boolean(b));
 
-    // Batch query 1: Bookings + Capster user names
-    // Batch query 2: Detail booking + layanan
-    // Batch query 3: Pembayaran
     const [bookingsWithCapster, allDetails, allPayments] = await Promise.all([
       bookingIds.length > 0
         ? db
@@ -119,19 +126,24 @@ export const getCapsterTransactions = createServerFn({
             .where(inArray(detailBooking.id_booking, bookingIds))
         : Promise.resolve([]),
 
-      txIds.length > 0
+      filteredRows.length > 0
         ? db
             .select({
               id_transaksi: pembayaran.id_transaksi,
               metode_pembayaran: pembayaran.metode_pembayaran,
+              status_pembayaran: pembayaran.status_pembayaran,
               referensi: pembayaran.referensi,
             })
             .from(pembayaran)
-            .where(inArray(pembayaran.id_transaksi, txIds))
+            .where(
+              inArray(
+                pembayaran.id_transaksi,
+                filteredRows.map((r) => r.id),
+              ),
+            )
         : Promise.resolve([]),
     ]);
 
-    // Fast O(1) in-memory maps
     const bookingMap = new Map(bookingsWithCapster.map((b) => [b.id_booking, b]));
     const detailsMap = new Map<
       string,
@@ -165,7 +177,7 @@ export const getCapsterTransactions = createServerFn({
     return filteredRows.map((r) => {
       const bInfo = r.id_booking ? bookingMap.get(r.id_booking) : null;
       const capsterName = bInfo?.capsterName ?? "Capster";
-      const capsterId = bInfo?.id_capster ?? "";
+      const capsterId = bInfo?.id_capster ?? targetCapsterId;
 
       const items = r.id_booking ? (detailsMap.get(r.id_booking) ?? []) : [];
       const serviceNames =
@@ -232,7 +244,7 @@ export const getDashboardMetrics = createServerFn({
     ) => data,
   )
   .handler(async ({ data }) => {
-    let targetCapsterId = data?.capsterId;
+    let targetCapsterId = data?.capsterId?.trim();
 
     if (!targetCapsterId && data?.userId) {
       const [c] = await db
@@ -244,14 +256,6 @@ export const getDashboardMetrics = createServerFn({
     }
 
     if (!targetCapsterId) {
-      const [firstCapster] = await db
-        .select({ id_capster: capster.id_capster })
-        .from(capster)
-        .limit(1);
-      if (firstCapster) targetCapsterId = firstCapster.id_capster;
-    }
-
-    if (!targetCapsterId) {
       return {
         totalTransaksi: 0,
         deltaTransaksi: "Hari ini",
@@ -260,7 +264,7 @@ export const getDashboardMetrics = createServerFn({
         totalLayanan: 0,
         deltaLayanan: "Hari ini",
         capsterAktif: 0,
-        deltaCapster: "Aktif",
+        deltaCapster: "Belum Aktif",
         statusLayanan: {
           selesai: 0,
           sedangDikerjakan: 0,
@@ -277,15 +281,12 @@ export const getDashboardMetrics = createServerFn({
       };
     }
 
-    // Hitung rentang hari ini (WIB / Asia/Jakarta)
-    const now = new Date();
-    const jakartaDateStr = now.toLocaleDateString("en-CA", {
+    const jakartaDateStr = new Date().toLocaleDateString("en-CA", {
       timeZone: "Asia/Jakarta",
     });
     const startOfToday = new Date(`${jakartaDateStr}T00:00:00+07:00`);
     const endOfToday = new Date(`${jakartaDateStr}T23:59:59.999+07:00`);
 
-    // Sesuai ERD: CAPSTER -> SHIFT CAPSTER -> TRANSAKSI
     const txs = await db
       .select({
         id_transaksi: transaksi.id_transaksi,
@@ -295,10 +296,15 @@ export const getDashboardMetrics = createServerFn({
         created_at: transaksi.created_at,
       })
       .from(transaksi)
-      .innerJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
+      .leftJoin(booking, eq(transaksi.id_booking, booking.id_booking))
+      .leftJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
       .where(
         and(
-          eq(shiftCapster.id_capster, targetCapsterId),
+          or(
+            eq(booking.id_capster, targetCapsterId),
+            and(isNull(transaksi.id_booking), eq(shiftCapster.id_capster, targetCapsterId)),
+            eq(shiftCapster.id_capster, targetCapsterId),
+          ),
           gte(transaksi.created_at, startOfToday),
           lte(transaksi.created_at, endOfToday),
         ),
@@ -327,7 +333,6 @@ export const getDashboardMetrics = createServerFn({
       }
     }
 
-    // Batch query quantity detail layanan untuk transaksi non-cancelled
     const bookingIdsForLayanan = txs
       .filter(
         (t) =>
@@ -345,13 +350,18 @@ export const getDashboardMetrics = createServerFn({
       totalLayanan = dbRows.reduce((s, d) => s + (d.qty || 1), 0);
     }
 
-    // Capster aktif: jumlah capster yang sedang check-in / memiliki shift "ongoing"
-    const activeCapsters = await db
-      .select({ count: sql<number>`count(distinct ${shiftCapster.id_capster})` })
+    const activeShift = await db
+      .select({ id: shiftCapster.id_shift })
       .from(shiftCapster)
-      .where(eq(shiftCapster.status, "ongoing"));
+      .where(
+        and(
+          eq(shiftCapster.id_capster, targetCapsterId),
+          eq(shiftCapster.status, "ongoing"),
+        ),
+      )
+      .limit(1);
 
-    const capsterAktif = Number(activeCapsters[0]?.count ?? 0);
+    const capsterAktif = activeShift.length > 0 ? 1 : 0;
 
     return {
       totalTransaksi,
@@ -361,7 +371,7 @@ export const getDashboardMetrics = createServerFn({
       totalLayanan,
       deltaLayanan: `Hari ini`,
       capsterAktif,
-      deltaCapster: `Aktif`,
+      deltaCapster: capsterAktif > 0 ? `Shift Aktif` : `Belum Check In`,
       statusLayanan: {
         selesai,
         sedangDikerjakan: 0,

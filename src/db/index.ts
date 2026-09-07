@@ -21,7 +21,7 @@ export const client =
     connect_timeout: 10,
   });
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env["NODE_ENV"] !== "production") {
   globalForDb.conn = client;
 }
 

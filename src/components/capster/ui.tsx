@@ -6,6 +6,7 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  ChevronRight,
   Clock,
   Coins,
   Grid,
@@ -35,6 +36,141 @@ import {
 } from "@/lib/capster-store";
 import { getCapsterTransactions } from "@/lib/capster-transactions";
 
+// Komponen Notifikasi Transaksi yang Dapat Digeser (Swipe to Dismiss) & Memiliki Tombol Close
+function SwipeableNotificationCard({
+  trx,
+  onSelect,
+  onDismiss,
+}: {
+  trx: CapsterTransaction;
+  onSelect: () => void;
+  onDismiss: (id: string) => void;
+}) {
+  const [offsetX, setOffsetX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const startXRef = useRef<number>(0);
+  const currentXRef = useRef<number>(0);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    startXRef.current = e.clientX;
+    currentXRef.current = e.clientX;
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const diff = e.clientX - startXRef.current;
+    currentXRef.current = e.clientX;
+    setOffsetX(diff);
+  };
+
+  const handlePointerUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const diff = currentXRef.current - startXRef.current;
+    if (Math.abs(diff) > 75) {
+      setIsRemoving(true);
+      setOffsetX(diff > 0 ? 320 : -320);
+      setTimeout(() => {
+        onDismiss(trx.id);
+      }, 180);
+    } else {
+      setOffsetX(0);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-[14px] transition-all",
+        isRemoving && "opacity-0 scale-95 h-0 my-0 py-0 overflow-hidden duration-200",
+      )}
+      style={{ touchAction: "pan-y" }}
+    >
+      {/* Background saat kartu digeser */}
+      <div className="absolute inset-0 flex items-center justify-between px-4 bg-danger/25 rounded-[14px] text-danger text-[11px] font-bold">
+        <span className="flex items-center gap-1">
+          <X className="h-3.5 w-3.5" /> Hapus
+        </span>
+        <span className="flex items-center gap-1">
+          Hapus <X className="h-3.5 w-3.5" />
+        </span>
+      </div>
+
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onClick={() => {
+          if (Math.abs(offsetX) < 8) {
+            onSelect();
+          }
+        }}
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          opacity: Math.max(0.35, 1 - Math.abs(offsetX) / 240),
+          transition: isDragging ? "none" : "transform 0.2s ease, opacity 0.2s ease",
+        }}
+        className="relative z-10 w-full text-left glass-2 rounded-[14px] p-3 border border-white/5 space-y-1.5 cursor-grab active:cursor-grabbing hover:bg-white/10 select-none transition-colors"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-mono text-[11px] font-bold text-primary-soft truncate">
+              #{trx.id.length > 12 ? `${trx.id.slice(0, 12)}...` : trx.id}
+            </span>
+            <span className="text-[10px] text-muted-foreground shrink-0">• {trx.time}</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning ring-1 ring-warning/30">
+              <Clock className="h-2.5 w-2.5" />
+              Menunggu
+            </span>
+            {/* Tombol Close / Hapus individual */}
+            <button
+              type="button"
+              title="Hapus notifikasi ini"
+              aria-label="Hapus notifikasi ini"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsRemoving(true);
+                setTimeout(() => onDismiss(trx.id), 180);
+              }}
+              className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-muted-foreground hover:bg-white/25 hover:text-white transition-all active:scale-90"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+
+        <p className="truncate text-[13px] font-bold text-foreground">
+          {trx.customerName}
+        </p>
+
+        <p className="truncate text-[11px] text-muted-foreground">
+          {trx.serviceNames}
+        </p>
+
+        <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[12px]">
+          <div>
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+              {trx.paymentMethod}
+            </span>
+            <p className="font-bold text-[13px] text-foreground">
+              {formatRupiah(trx.total)}
+            </p>
+          </div>
+          <span className="flex h-6 items-center justify-center rounded-[8px] bg-primary/25 px-2.5 text-[11px] font-bold text-primary-soft ring-1 ring-primary/40">
+            Konfirmasi &gt;
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Header Capster
 export function CapsterHeader({
   title,
@@ -50,21 +186,29 @@ export function CapsterHeader({
   showActions?: boolean;
 }) {
   const router = useRouter();
-  const { transactions } = useCapster();
+  const { transactions, capsterId } = useCapster();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>([]);
   const prevPendingCountRef = useRef<number | null>(null);
 
-  // Filter transaksi yang sedang menunggu konfirmasi pembayaran
-  const pendingTransactions = transactions.filter((t) => t.status === "Menunggu");
-  const pendingCount = pendingTransactions.length;
+  // Filter transaksi yang sedang menunggu konfirmasi pembayaran khusus capster yang sedang login
+  const pendingTransactions = transactions.filter(
+    (t) => t.status === "Menunggu" && (!capsterId || !t.capsterId || t.capsterId === capsterId),
+  );
+  // Notifikasi yang masih aktif (belum di-close/swipe oleh capster)
+  const visiblePendingTransactions = pendingTransactions.filter(
+    (t) => !dismissedNotifIds.includes(t.id),
+  );
+  const pendingCount = visiblePendingTransactions.length;
 
-  // Background polling agar notifikasi selalu realtime di semua halaman capster
+  // Background polling agar notifikasi selalu realtime di semua halaman capster (terisolasi per capster)
   useEffect(() => {
+    if (!capsterId) return;
     let mounted = true;
 
     const fetchPending = async () => {
       try {
-        const data = await getCapsterTransactions();
+        const data = await getCapsterTransactions({ data: { capsterId } });
         if (!mounted || !data) return;
         capsterActions.setTransactions(data as CapsterTransaction[]);
       } catch {
@@ -78,14 +222,16 @@ export function CapsterHeader({
       mounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [capsterId]);
 
   // Notifikasi Toast ketika ada transaksi baru yang masuk dan butuh konfirmasi
   useEffect(() => {
     if (prevPendingCountRef.current !== null && pendingCount > prevPendingCountRef.current) {
-      const latest = pendingTransactions[0];
+      const latest = visiblePendingTransactions[0];
       if (latest) {
+        const toastId = `pending-toast-${latest.id}`;
         toast.info("Permintaan Konfirmasi Pembayaran", {
+          id: toastId,
           description: `${latest.customerName} meminta konfirmasi (${formatRupiah(latest.total)})`,
           action: {
             label: "Konfirmasi",
@@ -96,12 +242,20 @@ export function CapsterHeader({
               });
             },
           },
-          duration: 7000,
+          cancel: {
+            label: "Tutup",
+            onClick: () => {
+              toast.dismiss(toastId);
+            },
+          },
+          closeButton: true,
+          dismissible: true,
+          duration: 9000,
         });
       }
     }
     prevPendingCountRef.current = pendingCount;
-  }, [pendingCount, pendingTransactions, router]);
+  }, [pendingCount, visiblePendingTransactions, router]);
 
   return (
     <header className="glass-3 safe-top sticky top-0 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-x-0 border-t-0 px-4 pb-3">
@@ -196,7 +350,7 @@ export function CapsterHeader({
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Permintaan pembayaran yang perlu dikonfirmasi
+                    Geser kartu atau tekan ✕ untuk menghapus
                   </p>
                 </div>
               </div>
@@ -210,7 +364,7 @@ export function CapsterHeader({
               </button>
             </div>
 
-            <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto pr-0.5">
+            <div className="mt-3 max-h-[320px] space-y-2 overflow-y-auto pr-0.5">
               {pendingCount === 0 ? (
                 <div className="py-6 text-center text-muted-foreground">
                   <CheckCircle2 className="mx-auto h-7 w-7 text-success/70 mb-1.5" />
@@ -218,58 +372,36 @@ export function CapsterHeader({
                     Tidak Ada Permintaan
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Semua pembayaran saat ini sudah dikonfirmasi.
+                    {dismissedNotifIds.length > 0
+                      ? "Semua notifikasi telah ditutup atau dikonfirmasi."
+                      : "Semua pembayaran saat ini sudah dikonfirmasi."}
                   </p>
+                  {dismissedNotifIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDismissedNotifIds([])}
+                      className="mt-2.5 text-[11px] font-semibold text-primary-soft hover:underline"
+                    >
+                      Tampilkan Kembali ({dismissedNotifIds.length}) Notifikasi
+                    </button>
+                  )}
                 </div>
               ) : (
-                pendingTransactions.map((trx) => (
-                  <button
+                visiblePendingTransactions.map((trx) => (
+                  <SwipeableNotificationCard
                     key={trx.id}
-                    type="button"
-                    onClick={() => {
+                    trx={trx}
+                    onSelect={() => {
                       setShowNotifications(false);
                       router.navigate({
                         to: "/capster/transactions/$transactionId",
                         params: { transactionId: trx.id },
                       });
                     }}
-                    className="w-full text-left glass-2 rounded-[14px] p-3 border border-white/5 space-y-1.5 transition-all hover:bg-white/10 active:scale-[0.99]"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-mono text-[11px] font-bold text-primary-soft truncate">
-                          #{trx.id.length > 12 ? `${trx.id.slice(0, 12)}...` : trx.id}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">• {trx.time}</span>
-                      </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning ring-1 ring-warning/30">
-                        <Clock className="h-2.5 w-2.5" />
-                        Menunggu
-                      </span>
-                    </div>
-
-                    <p className="truncate text-[13px] font-bold text-foreground">
-                      {trx.customerName}
-                    </p>
-
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {trx.serviceNames}
-                    </p>
-
-                    <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[12px]">
-                      <div>
-                        <span className="text-[10px] font-semibold uppercase text-muted-foreground">
-                          {trx.paymentMethod}
-                        </span>
-                        <p className="font-bold text-[13px] text-foreground">
-                          {formatRupiah(trx.total)}
-                        </p>
-                      </div>
-                      <span className="flex h-6 items-center justify-center rounded-[8px] bg-primary/25 px-2.5 text-[11px] font-bold text-primary-soft ring-1 ring-primary/40">
-                        Konfirmasi &gt;
-                      </span>
-                    </div>
-                  </button>
+                    onDismiss={(id) => {
+                      setDismissedNotifIds((prev) => [...prev, id]);
+                    }}
+                  />
                 ))
               )}
             </div>
@@ -451,29 +583,33 @@ export function UnconfirmedTransactionsSection({
   transactions: CapsterTransaction[];
 }) {
   return (
-    <GlassCard className="space-y-3.5 p-4">
-      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-[14px] font-bold uppercase tracking-wider">
+    <GlassCard className="space-y-3.5 p-4 rounded-[20px] border border-white/10 bg-slate-900/60 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.25)]">
+      {/* Header Section */}
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-[12px] sm:text-[13px] font-bold uppercase tracking-wider text-foreground">
             TRANSAKSI BELUM DIKONFIRMASI
           </h2>
           {transactions.length > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-warning/20 px-1.5 text-[11px] font-bold text-warning ring-1 ring-warning/30">
+            <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-warning/20 px-1.5 text-[11px] font-bold text-warning ring-1 ring-warning/30">
               {transactions.length}
             </span>
           )}
         </div>
         <Link
           to="/capster/transactions"
-          className="text-[12px] font-semibold text-primary-soft hover:underline"
+          className="inline-flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-primary-soft hover:text-primary whitespace-nowrap transition-colors"
         >
-          Lihat Semua &gt;
+          <span>Lihat Semua</span>
+          <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
         </Link>
       </div>
 
       {transactions.length === 0 ? (
-        <div className="py-6 text-center text-muted-foreground">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-success/70 mb-2" strokeWidth={2} />
+        <div className="py-7 text-center text-muted-foreground">
+          <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-success/15 text-success ring-1 ring-success/30">
+            <CheckCircle2 className="h-5 w-5" strokeWidth={2.5} />
+          </div>
           <p className="text-[13px] font-semibold text-foreground">
             Tidak Ada Transaksi Menunggu
           </p>
@@ -482,46 +618,55 @@ export function UnconfirmedTransactionsSection({
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-0.5">
+        <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 pb-0.5 custom-scrollbar">
           {transactions.map((trx) => (
             <Link
               key={trx.id}
               to="/capster/transactions/$transactionId"
               params={{ transactionId: trx.id }}
-              className="glass-2 block rounded-[14px] p-3 border border-white/5 space-y-2 transition-all hover:bg-white/[0.08] active:scale-[0.99]"
+              className="group block rounded-[16px] p-3.5 bg-slate-900/40 hover:bg-slate-800/60 border border-white/[0.08] hover:border-primary/40 transition-all duration-200 active:scale-[0.99] shadow-sm"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono text-[12px] font-bold text-primary-soft truncate">
-                    #{trx.id.length > 14 ? `${trx.id.slice(0, 14)}...` : trx.id}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground shrink-0">• {trx.time}</span>
+              {/* Row 1: ID Transaksi & Waktu */}
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.06]">
+                <span className="font-mono text-[11px] font-semibold text-primary-soft/90 truncate max-w-[170px] sm:max-w-[210px]">
+                  #{trx.id.length > 14 ? `${trx.id.slice(0, 14)}...` : trx.id}
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground shrink-0 flex items-center gap-1">
+                  <span>•</span>
+                  <span>{trx.time}</span>
+                </span>
+              </div>
+
+              {/* Row 2: Nama Pelanggan & Layanan (kiri) vs Status Menunggu (kanan) */}
+              <div className="flex items-start justify-between gap-2 py-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[14px] font-bold text-foreground truncate group-hover:text-primary-soft transition-colors">
+                    {trx.customerName}
+                  </h3>
+                  <p className="text-[12px] text-muted-foreground truncate leading-snug mt-0.5">
+                    {trx.serviceNames}
+                  </p>
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning ring-1 ring-warning/30">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-[10px] font-bold text-warning ring-1 ring-warning/30 shadow-sm mt-0.5">
                   <Clock className="h-3 w-3" strokeWidth={2.5} />
-                  Menunggu
+                  <span>Menunggu</span>
                 </span>
               </div>
 
-              <div className="min-w-0">
-                <p className="truncate text-[14px] font-bold text-foreground">
-                  {trx.customerName}
-                </p>
-                <p className="truncate text-[12px] text-muted-foreground">
-                  {trx.serviceNames}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[13px]">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {trx.paymentMethod}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-[14px] text-foreground">
+              {/* Row 3: Metode Pembayaran (kiri) vs Total Harga & Tombol Konfirmasi (kanan) */}
+              <div className="flex items-end justify-between gap-2 pt-2 border-t border-white/[0.06]">
+                <div className="flex items-center pb-0.5">
+                  <span className="inline-flex items-center rounded-[6px] bg-white/[0.06] border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                    {trx.paymentMethod}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span className="text-[14px] font-extrabold text-foreground tracking-tight">
                     {formatRupiah(trx.total)}
                   </span>
-                  <span className="flex h-6 items-center justify-center rounded-[8px] bg-primary/20 px-2 text-[11px] font-bold text-primary-soft ring-1 ring-primary/40">
-                    Konfirmasi &gt;
+                  <span className="inline-flex items-center gap-1 rounded-[8px] bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-bold shadow-[0_2px_8px_rgba(78,120,255,0.35)] group-hover:bg-primary/90 transition-all">
+                    <span>Konfirmasi</span>
+                    <ChevronRight className="h-3 w-3" strokeWidth={2.5} />
                   </span>
                 </div>
               </div>

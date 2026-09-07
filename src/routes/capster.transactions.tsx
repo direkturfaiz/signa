@@ -34,7 +34,7 @@ export const Route = createFileRoute("/capster/transactions")({
 function CapsterTransactionsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { transactions } = useCapster();
+  const { transactions, capsterId } = useCapster();
   const [loading, setLoading] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -43,12 +43,16 @@ function CapsterTransactionsPage() {
   >("Semua");
 
   useEffect(() => {
+    if (!capsterId) {
+      setLoading(false);
+      return;
+    }
     let mounted = true;
 
     const fetchTransactions = async (isInitial = false) => {
       if (isInitial) setLoading(true);
       try {
-        const data = await getCapsterTransactions();
+        const data = await getCapsterTransactions({ data: { capsterId } });
         if (!mounted) return;
         capsterActions.setTransactions(data as CapsterTransaction[]);
       } catch (err) {
@@ -67,13 +71,17 @@ function CapsterTransactionsPage() {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [capsterId]);
 
   if (location.pathname !== "/capster/transactions") {
     return <Outlet />;
   }
 
-  const filtered = transactions.filter((t) => {
+  const capsterTransactions = transactions.filter(
+    (t) => !capsterId || !t.capsterId || t.capsterId === capsterId,
+  );
+
+  const filtered = capsterTransactions.filter((t) => {
     const matchSearch =
       t.id.toLowerCase().includes(search.toLowerCase()) ||
       t.customerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -115,8 +123,8 @@ function CapsterTransactionsPage() {
             const active = activeFilter === filter;
             const count =
               filter === "Semua"
-                ? transactions.length
-                : transactions.filter((t) => t.status === filter).length;
+                ? capsterTransactions.length
+                : capsterTransactions.filter((t) => t.status === filter).length;
 
             return (
               <button

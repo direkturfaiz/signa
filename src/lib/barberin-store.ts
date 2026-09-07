@@ -24,8 +24,6 @@ export type Capster = {
 export const CAPSTERS: Capster[] = [
   { id: "CAP001", name: "Budi", role: "Senior Barber", status: "AVAILABLE" },
   { id: "CAP002", name: "Andi", role: "Barber", status: "AVAILABLE" },
-  { id: "CAP003", name: "Rizky", role: "Barber", status: "BUSY" },
-  { id: "CAP004", name: "Dimas", role: "Barber", status: "OFFLINE" },
 ];
 
 export const CAPSTER_STATUS_LABEL: Record<CapsterStatus, string> = {

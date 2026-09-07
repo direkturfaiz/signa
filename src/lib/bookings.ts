@@ -297,6 +297,7 @@ export const getTransactionDetail = createServerFn({
     let bookingInfo = null;
     let capsterName = "Capster";
     let capsterRole = "Barber";
+    let capsterId: string | null = null;
 
     if (tx.id_booking) {
       const bRows = await db
@@ -313,6 +314,7 @@ export const getTransactionDetail = createServerFn({
 
       if (bRows[0]) {
         bookingInfo = bRows[0];
+        capsterId = bRows[0].id_capster;
         if (bRows[0].id_capster) {
           const capRows = await db
             .select({
@@ -330,6 +332,26 @@ export const getTransactionDetail = createServerFn({
               capRows[0].no_pegawai === "CAP-001" ? "Senior Barber" : "Barber";
           }
         }
+      }
+    }
+
+    if (!capsterId && tx.id_shift) {
+      const sRows = await db
+        .select({
+          id_capster: shiftCapster.id_capster,
+          nama_lengkap: users.nama_lengkap,
+          no_pegawai: capster.no_pegawai,
+        })
+        .from(shiftCapster)
+        .innerJoin(capster, eq(shiftCapster.id_capster, capster.id_capster))
+        .innerJoin(users, eq(capster.id_user, users.id_user))
+        .where(eq(shiftCapster.id_shift, tx.id_shift))
+        .limit(1);
+      if (sRows[0]) {
+        capsterId = sRows[0].id_capster;
+        capsterName = sRows[0].nama_lengkap;
+        capsterRole =
+          sRows[0].no_pegawai === "CAP-001" ? "Senior Barber" : "Barber";
       }
     }
 
@@ -391,6 +413,7 @@ export const getTransactionDetail = createServerFn({
       customerId: tx.id_pelanggan,
       customerName: tx.customer_name,
       customerPhone: tx.customer_phone,
+      capsterId: capsterId ?? "",
       capsterName,
       capsterRole,
       createdAt: tx.created_at.toISOString(),
@@ -411,11 +434,50 @@ export const confirmPaymentAndGenerateStruk = createServerFn({
   .validator(
     (data: {
       transactionId: string;
+      capsterId?: string;
       cashReceived?: number;
       referensi?: string;
     }) => data,
   )
   .handler(async ({ data }) => {
+    // 0. Authorization check: jika capsterId dikirimkan, pastikan transaksi milik capster ini
+    if (data.capsterId) {
+      const txCheck = await db
+        .select({
+          id_booking: transaksi.id_booking,
+          id_shift: transaksi.id_shift,
+        })
+        .from(transaksi)
+        .where(eq(transaksi.id_transaksi, data.transactionId))
+        .limit(1);
+
+      if (txCheck[0]) {
+        let assignedCapsterId: string | null = null;
+        if (txCheck[0].id_booking) {
+          const bCheck = await db
+            .select({ id_capster: booking.id_capster })
+            .from(booking)
+            .where(eq(booking.id_booking, txCheck[0].id_booking))
+            .limit(1);
+          assignedCapsterId = bCheck[0]?.id_capster ?? null;
+        }
+        if (!assignedCapsterId && txCheck[0].id_shift) {
+          const sCheck = await db
+            .select({ id_capster: shiftCapster.id_capster })
+            .from(shiftCapster)
+            .where(eq(shiftCapster.id_shift, txCheck[0].id_shift))
+            .limit(1);
+          assignedCapsterId = sCheck[0]?.id_capster ?? null;
+        }
+
+        if (assignedCapsterId && assignedCapsterId !== data.capsterId) {
+          throw new Error(
+            "Akses ditolak. Anda tidak berhak mengonfirmasi transaksi milik capster lain.",
+          );
+        }
+      }
+    }
+
     const now = new Date();
 
     // 1. Update Transaksi
@@ -625,4 +687,45 @@ export const getOrCreateCustomer = createServerFn({
       userId: userRow.id_user,
       name: userRow.nama_lengkap,
     };
+  });
+
+export const cancelCustomerTransaction = createServerFn({
+  method: "POST",
+})
+  .validator((data: { transactionId: string; reason?: string }) => data)
+  .handler(async ({ data }) => {
+    const [tx] = await db
+      .select({
+        id_transaksi: transaksi.id_transaksi,
+        id_booking: transaksi.id_booking,
+      })
+      .from(transaksi)
+      .where(eq(transaksi.id_transaksi, data.transactionId))
+      .limit(1);
+
+    if (!tx) {
+      throw new Error("Transaksi tidak ditemukan.");
+    }
+
+    await db
+      .update(transaksi)
+      .set({ status_transaksi: "cancelled" })
+      .where(eq(transaksi.id_transaksi, data.transactionId));
+
+    if (tx.id_booking) {
+      await db
+        .update(booking)
+        .set({
+          status: "cancelled",
+          catatan: data.reason ? `Dibatalkan pelanggan: ${data.reason}` : "Dibatalkan pelanggan",
+        })
+        .where(eq(booking.id_booking, tx.id_booking));
+    }
+
+    await db
+      .update(pembayaran)
+      .set({ status_pembayaran: "failed" })
+      .where(eq(pembayaran.id_transaksi, data.transactionId));
+
+    return { success: true };
   });

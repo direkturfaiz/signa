@@ -26,17 +26,26 @@ export const Route = createFileRoute("/capster/transactions/today")({
 
 function TodayTransactionsPage() {
   const navigate = useNavigate();
-  const { transactions, dashboardMetrics } = useCapster();
+  const { transactions, capsterId, dashboardMetrics } = useCapster();
   const [filter, setFilter] = useState<"Semua" | "Menunggu" | "Selesai" | "Batal">("Semua");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!capsterId) {
+      setLoading(false);
+      return;
+    }
     let mounted = true;
 
     const fetchToday = async (isInitial = false) => {
       if (isInitial) setLoading(true);
       try {
-        const data = await getCapsterTransactions({ data: { todayOnly: true } });
+        const data = await getCapsterTransactions({
+          data: {
+            capsterId,
+            todayOnly: true,
+          },
+        });
         if (!mounted) return;
         capsterActions.setTransactions(data as CapsterTransaction[]);
       } catch (err) {
@@ -55,14 +64,18 @@ function TodayTransactionsPage() {
       mounted = false;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [capsterId]);
 
-  const totalCount = transactions.length;
-  const menungguCount = transactions.filter((t) => t.status === "Menunggu").length;
-  const selesaiCount = transactions.filter((t) => t.status === "Selesai").length;
-  const batalCount = transactions.filter((t) => t.status === "Batal").length;
+  const capsterTransactions = transactions.filter(
+    (t) => !capsterId || !t.capsterId || t.capsterId === capsterId,
+  );
 
-  const filtered = transactions.filter((t) => {
+  const totalCount = capsterTransactions.length;
+  const menungguCount = capsterTransactions.filter((t) => t.status === "Menunggu").length;
+  const selesaiCount = capsterTransactions.filter((t) => t.status === "Selesai").length;
+  const batalCount = capsterTransactions.filter((t) => t.status === "Batal").length;
+
+  const filtered = capsterTransactions.filter((t) => {
     if (filter === "Semua") return true;
     return t.status === filter;
   });

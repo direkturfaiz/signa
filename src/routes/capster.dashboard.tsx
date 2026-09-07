@@ -24,18 +24,6 @@ import {
 import { endShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/dashboard")({
-  loader: async () => {
-    try {
-      const [metrics, txs] = await Promise.all([
-        getDashboardMetrics(),
-        getCapsterTransactions(),
-      ]);
-      return { metrics, txs: (txs ?? []) as CapsterTransaction[] };
-    } catch (e) {
-      console.error("Loader error dashboard:", e);
-      return { metrics: null, txs: [] as CapsterTransaction[] };
-    }
-  },
   head: () => ({
     meta: [
       { title: "Dashboard Capster — BARBERIN" },
@@ -47,35 +35,18 @@ export const Route = createFileRoute("/capster/dashboard")({
 
 function CapsterDashboardPage() {
   const navigate = useNavigate();
-  const loaderData = Route.useLoaderData();
-  const loaderMetrics = loaderData?.metrics ?? null;
-  const loaderTxs = loaderData?.txs ?? [];
-
   const { capsterId, userId, capsterName, dashboardMetrics, shiftId, transactions } =
     useCapster();
   const [showEndShiftModal, setShowEndShiftModal] = useState(false);
 
-  useEffect(() => {
-    if (loaderMetrics) {
-      capsterActions.setDashboardMetrics(loaderMetrics);
-    }
-    if (loaderTxs && loaderTxs.length > 0) {
-      capsterActions.setTransactions(loaderTxs);
-    }
-  }, [loaderMetrics, loaderTxs]);
-
-  const currentMetrics =
-    dashboardMetrics.totalTransaksi > 0 || dashboardMetrics.totalPendapatan > 0
-      ? dashboardMetrics
-      : (loaderMetrics ?? dashboardMetrics);
-
-  const currentTransactions =
-    transactions.length > 0 ? transactions : loaderTxs;
+  const currentMetrics = dashboardMetrics;
+  const currentTransactions = transactions;
   const unconfirmedTransactions = currentTransactions.filter(
-    (t) => t.status === "Menunggu",
+    (t) => t.status === "Menunggu" && (!capsterId || !t.capsterId || t.capsterId === capsterId),
   );
 
   useEffect(() => {
+    if (!capsterId) return;
     let mounted = true;
 
     const fetchAllData = async () => {
@@ -83,13 +54,13 @@ function CapsterDashboardPage() {
         const [metrics, txs] = await Promise.all([
           getDashboardMetrics({
             data: {
-              capsterId: capsterId ?? undefined,
-              userId: userId ?? undefined,
+              capsterId,
+              ...(userId ? { userId } : {}),
             },
           }),
           getCapsterTransactions({
             data: {
-              capsterId: capsterId ?? undefined,
+              capsterId,
             },
           }),
         ]);
@@ -102,7 +73,7 @@ function CapsterDashboardPage() {
     };
 
     fetchAllData();
-    const intervalId = setInterval(fetchAllData, 4000);
+    const intervalId = setInterval(fetchAllData, 3500);
 
     return () => {
       mounted = false;

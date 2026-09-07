@@ -31,6 +31,12 @@ function CheckInPage() {
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
+    // Jika capster sudah check in dan belum akhiri shift, langsung ke dashboard
+    if (shiftInfo.isCheckedIn && !shiftInfo.isShiftEnded) {
+      navigate({ to: "/capster/dashboard", replace: true });
+      return;
+    }
+
     getActiveShift({
       data: {
         ...(capsterId ? { capsterId } : {}),
@@ -40,14 +46,15 @@ function CheckInPage() {
       .then((active) => {
         if (active) {
           capsterActions.checkIn(active.id_shift);
+          navigate({ to: "/capster/dashboard", replace: true });
         }
       })
       .catch((e) => console.error(e));
-  }, [capsterId, capsterName]);
+  }, [capsterId, capsterName, shiftInfo.isCheckedIn, shiftInfo.isShiftEnded, navigate]);
 
   const handleCheckIn = async () => {
     if (shiftInfo.isCheckedIn) {
-      navigate({ to: "/capster/dashboard" });
+      navigate({ to: "/capster/dashboard", replace: true });
       return;
     }
     setChecking(true);
@@ -59,14 +66,24 @@ function CheckInPage() {
         capsterActions.checkIn(active.id_shift);
       }
       setChecking(false);
-      navigate({ to: "/capster/dashboard" });
+      navigate({ to: "/capster/dashboard", replace: true });
     } catch (err) {
       console.error(err);
       capsterActions.checkIn();
       setChecking(false);
-      navigate({ to: "/capster/dashboard" });
+      navigate({ to: "/capster/dashboard", replace: true });
     }
   };
+
+  if (shiftInfo.isCheckedIn && !shiftInfo.isShiftEnded) {
+    return (
+      <MobileShell>
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-muted-foreground">
+          <p className="text-[13px] text-muted-foreground">Menuju Dashboard...</p>
+        </div>
+      </MobileShell>
+    );
+  }
 
   return (
     <MobileShell>

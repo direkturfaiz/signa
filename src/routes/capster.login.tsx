@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Eye, EyeOff, Lock, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -9,8 +9,9 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { capsterActions } from "@/lib/capster-store";
+import { capsterActions, useCapster } from "@/lib/capster-store";
 import { loginCapster } from "@/lib/capsters";
+import { getActiveShift } from "@/lib/shifts";
 
 export const Route = createFileRoute("/capster/login")({
   head: () => ({
@@ -24,12 +25,34 @@ export const Route = createFileRoute("/capster/login")({
 
 function CapsterLoginPage() {
   const navigate = useNavigate();
+  const { isLoggedIn, shiftInfo, capsterId, capsterName } = useCapster();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Jika capster sudah check-in dan belum akhiri shift, langsung ke dashboard
+    if (isLoggedIn && shiftInfo.isCheckedIn && !shiftInfo.isShiftEnded) {
+      navigate({ to: "/capster/dashboard", replace: true });
+      return;
+    }
+
+    if (capsterId) {
+      getActiveShift({
+        data: { capsterId, capsterName },
+      })
+        .then((active) => {
+          if (active) {
+            capsterActions.checkIn(active.id_shift);
+            navigate({ to: "/capster/dashboard", replace: true });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isLoggedIn, shiftInfo.isCheckedIn, shiftInfo.isShiftEnded, capsterId, capsterName, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +69,27 @@ function CapsterLoginPage() {
         role: res.role,
         barbershopId: res.id_barbershop,
       });
+
+      // Cek apakah capster ini sudah punya active shift di database
+      try {
+        const active = await getActiveShift({
+          data: {
+            capsterId: res.id_capster,
+            capsterName: res.nama_lengkap,
+          },
+        });
+        if (active) {
+          capsterActions.checkIn(active.id_shift);
+          setLoading(false);
+          navigate({ to: "/capster/dashboard", replace: true });
+          return;
+        }
+      } catch (err) {
+        console.error("Gagal memeriksa shift aktif:", err);
+      }
+
       setLoading(false);
-      navigate({ to: "/capster/check-in" });
+      navigate({ to: "/capster/check-in", replace: true });
     } catch (err: any) {
       console.error(err);
       const msg =

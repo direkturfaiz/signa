@@ -136,29 +136,33 @@ const INITIAL_METRICS: DashboardMetrics = EMPTY_METRICS;
 const INITIAL_TRANSACTIONS: CapsterTransaction[] = [];
 
 const initialCapsterState: CapsterState = {
-  isLoggedIn: true,
-  userId: "f6c60035-fbc2-4e17-9fc2-015e7f478b94",
-  capsterId: "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
-  barbershopId: "d6c11b82-69d4-4778-9990-a0a18e436336",
-  shiftId: "7d271050-f2b0-4851-aca0-d0fa3f548874",
-  capsterName: "Budi",
-  capsterRole: "Senior Barber",
+  isLoggedIn: false,
+  userId: null,
+  capsterId: null,
+  barbershopId: null,
+  shiftId: null,
+  capsterName: "",
+  capsterRole: "",
   shiftInfo: {
-    date: "03 September 2026",
-    day: "Kamis",
+    date: new Date().toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }),
+    day: new Date().toLocaleDateString("id-ID", { weekday: "long" }),
     startTime: "08:00 WIB",
     endTime: "17:00 WIB",
-    isCheckedIn: true,
-    checkedInAt: "08:00 WIB",
+    isCheckedIn: false,
+    checkedInAt: null,
     hasOtherCheckedIn: false,
     isShiftEnded: false,
   },
-  dashboardMetrics: INITIAL_METRICS,
-  transactions: INITIAL_TRANSACTIONS,
+  dashboardMetrics: EMPTY_METRICS,
+  transactions: [],
   manualDraft: {
-    capsterId: "4bac18cd-d0c8-4933-a24b-2eacf56294ac",
-    capsterName: "Budi",
-    capsterRole: "Senior Barber",
+    capsterId: null,
+    capsterName: "",
+    capsterRole: "",
     selectedServiceIds: [],
     selectedServices: [],
     customerName: "",
@@ -236,6 +240,7 @@ export const capsterActions = {
         isLoggedIn: true,
         capsterName: payload,
         dashboardMetrics: EMPTY_METRICS,
+        transactions: [],
       });
     } else {
       const isSwitchingCapster =
@@ -248,21 +253,29 @@ export const capsterActions = {
         userId: payload.userId ?? state.userId,
         barbershopId: payload.barbershopId ?? state.barbershopId,
         shiftId: payload.shiftId ?? (isSwitchingCapster ? null : state.shiftId),
-        dashboardMetrics: isSwitchingCapster ? EMPTY_METRICS : state.dashboardMetrics,
+        dashboardMetrics: EMPTY_METRICS,
+        transactions: [],
+        manualDraft: {
+          ...initialCapsterState.manualDraft,
+          capsterId: payload.id ?? state.capsterId,
+          capsterName: payload.name,
+          capsterRole: payload.role ?? state.capsterRole,
+        },
       });
     }
   },
 
   logout() {
     setState({
-      isLoggedIn: false,
-      capsterId: null,
-      userId: null,
-      shiftId: null,
-      capsterName: "",
-      dashboardMetrics: EMPTY_METRICS,
-      transactions: [],
+      ...initialCapsterState,
     });
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(CAPSTER_STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
   },
 
   setDashboardMetrics(metrics: DashboardMetrics) {
@@ -518,6 +531,7 @@ export const capsterActions = {
         capsterName: "",
         capsterRole: "",
         selectedServiceIds: [],
+        selectedServices: [],
         customerName: "",
         customerPhone: "",
         notes: "",
