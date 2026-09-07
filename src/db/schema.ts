@@ -332,6 +332,47 @@ export const struk = pgTable(
 );
 
 // ==============================
+// 12. ALASAN PEMBATALAN
+// ==============================
+export const alasanPembatalan = pgTable(
+  "alasan_pembatalan",
+  {
+    id_alasan: uuid("id_alasan").defaultRandom().primaryKey(),
+    tipe_aktor: varchar("tipe_aktor", { length: 50 }).notNull(), // 'pelanggan' | 'admin/capster'
+    alasan: varchar("alasan", { length: 100 }).notNull(),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  }
+);
+
+// ==============================
+// 13. PEMBATALAN
+// ==============================
+export const pembatalan = pgTable(
+  "pembatalan",
+  {
+    id_pembatalan: uuid("id_pembatalan").defaultRandom().primaryKey(),
+    id_transaksi: uuid("id_transaksi")
+      .notNull()
+      .references(() => transaksi.id_transaksi, { onDelete: "cascade" }),
+    id_alasan: uuid("id_alasan").references(() => alasanPembatalan.id_alasan, {
+      onDelete: "set null",
+    }),
+    dibatalkan_oleh: varchar("dibatalkan_oleh", { length: 50 }).notNull(), // 'pelanggan' | 'admin/capster'
+    waktu_pembatalan: timestamp("waktu_pembatalan", { mode: "date" })
+      .notNull()
+      .defaultNow(),
+    catatan: text("catatan"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("pembatalan_transaksi_idx").on(table.id_transaksi),
+    index("pembatalan_alasan_idx").on(table.id_alasan),
+  ],
+);
+
+// ==============================
 // RELATIONS
 // ==============================
 export const usersRelations = relations(users, ({ one }) => ({
@@ -438,6 +479,10 @@ export const transaksiRelations = relations(transaksi, ({ one, many }) => ({
     fields: [transaksi.id_transaksi],
     references: [struk.id_transaksi],
   }),
+  pembatalan: one(pembatalan, {
+    fields: [transaksi.id_transaksi],
+    references: [pembatalan.id_transaksi],
+  }),
 }));
 
 export const pembayaranRelations = relations(pembayaran, ({ one }) => ({
@@ -452,6 +497,21 @@ export const strukRelations = relations(struk, ({ one }) => ({
     fields: [struk.id_transaksi],
     references: [transaksi.id_transaksi],
   }),
+}));
+
+export const pembatalanRelations = relations(pembatalan, ({ one }) => ({
+  transaksi: one(transaksi, {
+    fields: [pembatalan.id_transaksi],
+    references: [transaksi.id_transaksi],
+  }),
+  alasan: one(alasanPembatalan, {
+    fields: [pembatalan.id_alasan],
+    references: [alasanPembatalan.id_alasan],
+  }),
+}));
+
+export const alasanPembatalanRelations = relations(alasanPembatalan, ({ many }) => ({
+  pembatalan: many(pembatalan),
 }));
 
 // ==============================
@@ -489,3 +549,9 @@ export type NewPembayaran = typeof pembayaran.$inferInsert;
 
 export type Struk = typeof struk.$inferSelect;
 export type NewStruk = typeof struk.$inferInsert;
+
+export type Pembatalan = typeof pembatalan.$inferSelect;
+export type NewPembatalan = typeof pembatalan.$inferInsert;
+
+export type AlasanPembatalan = typeof alasanPembatalan.$inferSelect;
+export type NewAlasanPembatalan = typeof alasanPembatalan.$inferInsert;

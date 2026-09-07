@@ -30,6 +30,13 @@ import { Route as CustomerPaymentConfirmationRouteImport } from './routes/custom
 import { Route as CustomerServiceExecutionRouteImport } from './routes/customer.service-execution'
 import { Route as CustomerServicesRouteImport } from './routes/customer.services'
 import { Route as CustomerSuccessRouteImport } from './routes/customer.success'
+import { Route as OwnerAuditRouteImport } from './routes/owner.audit'
+import { Route as OwnerCapstersRouteImport } from './routes/owner.capsters'
+import { Route as OwnerDashboardRouteImport } from './routes/owner.dashboard'
+import { Route as OwnerHelpRouteImport } from './routes/owner.help'
+import { Route as OwnerLoginRouteImport } from './routes/owner.login'
+import { Route as OwnerServicesRouteImport } from './routes/owner.services'
+import { Route as OwnerSettingsRouteImport } from './routes/owner.settings'
 import { Route as CapsterTransactionsTransactionIdRouteImport } from './routes/capster.transactions.$transactionId'
 import { Route as CapsterTransactionsManualRouteImport } from './routes/capster.transactions.manual'
 import { Route as CapsterTransactionsSuccessRouteImport } from './routes/capster.transactions.success'
@@ -148,6 +155,41 @@ const CustomerSuccessRoute = CustomerSuccessRouteImport.update({
   path: '/customer/success',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerAuditRoute = OwnerAuditRouteImport.update({
+  id: '/owner/audit',
+  path: '/owner/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerCapstersRoute = OwnerCapstersRouteImport.update({
+  id: '/owner/capsters',
+  path: '/owner/capsters',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerDashboardRoute = OwnerDashboardRouteImport.update({
+  id: '/owner/dashboard',
+  path: '/owner/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerHelpRoute = OwnerHelpRouteImport.update({
+  id: '/owner/help',
+  path: '/owner/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerLoginRoute = OwnerLoginRouteImport.update({
+  id: '/owner/login',
+  path: '/owner/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerServicesRoute = OwnerServicesRouteImport.update({
+  id: '/owner/services',
+  path: '/owner/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerSettingsRoute = OwnerSettingsRouteImport.update({
+  id: '/owner/settings',
+  path: '/owner/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CapsterTransactionsTransactionIdRoute =
   CapsterTransactionsTransactionIdRouteImport.update({
     id: '/$transactionId',
@@ -231,6 +273,13 @@ export interface FileRoutesByFullPath {
   '/customer/service-execution': typeof CustomerServiceExecutionRoute
   '/customer/services': typeof CustomerServicesRoute
   '/customer/success': typeof CustomerSuccessRoute
+  '/owner/audit': typeof OwnerAuditRoute
+  '/owner/capsters': typeof OwnerCapstersRoute
+  '/owner/dashboard': typeof OwnerDashboardRoute
+  '/owner/help': typeof OwnerHelpRoute
+  '/owner/login': typeof OwnerLoginRoute
+  '/owner/services': typeof OwnerServicesRoute
+  '/owner/settings': typeof OwnerSettingsRoute
   '/capster/transactions/$transactionId': typeof CapsterTransactionsTransactionIdRouteWithChildren
   '/capster/transactions/manual': typeof CapsterTransactionsManualRouteWithChildren
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
@@ -264,6 +313,13 @@ export interface FileRoutesByTo {
   '/customer/service-execution': typeof CustomerServiceExecutionRoute
   '/customer/services': typeof CustomerServicesRoute
   '/customer/success': typeof CustomerSuccessRoute
+  '/owner/audit': typeof OwnerAuditRoute
+  '/owner/capsters': typeof OwnerCapstersRoute
+  '/owner/dashboard': typeof OwnerDashboardRoute
+  '/owner/help': typeof OwnerHelpRoute
+  '/owner/login': typeof OwnerLoginRoute
+  '/owner/services': typeof OwnerServicesRoute
+  '/owner/settings': typeof OwnerSettingsRoute
   '/capster/transactions/$transactionId': typeof CapsterTransactionsTransactionIdRouteWithChildren
   '/capster/transactions/manual': typeof CapsterTransactionsManualRouteWithChildren
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
@@ -298,6 +354,13 @@ export interface FileRoutesById {
   '/customer/service-execution': typeof CustomerServiceExecutionRoute
   '/customer/services': typeof CustomerServicesRoute
   '/customer/success': typeof CustomerSuccessRoute
+  '/owner/audit': typeof OwnerAuditRoute
+  '/owner/capsters': typeof OwnerCapstersRoute
+  '/owner/dashboard': typeof OwnerDashboardRoute
+  '/owner/help': typeof OwnerHelpRoute
+  '/owner/login': typeof OwnerLoginRoute
+  '/owner/services': typeof OwnerServicesRoute
+  '/owner/settings': typeof OwnerSettingsRoute
   '/capster/transactions/$transactionId': typeof CapsterTransactionsTransactionIdRouteWithChildren
   '/capster/transactions/manual': typeof CapsterTransactionsManualRouteWithChildren
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
@@ -333,6 +396,13 @@ export interface FileRouteTypes {
     | '/customer/service-execution'
     | '/customer/services'
     | '/customer/success'
+    | '/owner/audit'
+    | '/owner/capsters'
+    | '/owner/dashboard'
+    | '/owner/help'
+    | '/owner/login'
+    | '/owner/services'
+    | '/owner/settings'
     | '/capster/transactions/$transactionId'
     | '/capster/transactions/manual'
     | '/capster/transactions/success'
@@ -366,6 +436,13 @@ export interface FileRouteTypes {
     | '/customer/service-execution'
     | '/customer/services'
     | '/customer/success'
+    | '/owner/audit'
+    | '/owner/capsters'
+    | '/owner/dashboard'
+    | '/owner/help'
+    | '/owner/login'
+    | '/owner/services'
+    | '/owner/settings'
     | '/capster/transactions/$transactionId'
     | '/capster/transactions/manual'
     | '/capster/transactions/success'
@@ -399,6 +476,13 @@ export interface FileRouteTypes {
     | '/customer/service-execution'
     | '/customer/services'
     | '/customer/success'
+    | '/owner/audit'
+    | '/owner/capsters'
+    | '/owner/dashboard'
+    | '/owner/help'
+    | '/owner/login'
+    | '/owner/services'
+    | '/owner/settings'
     | '/capster/transactions/$transactionId'
     | '/capster/transactions/manual'
     | '/capster/transactions/success'
@@ -433,6 +517,13 @@ export interface RootRouteChildren {
   CustomerServiceExecutionRoute: typeof CustomerServiceExecutionRoute
   CustomerServicesRoute: typeof CustomerServicesRoute
   CustomerSuccessRoute: typeof CustomerSuccessRoute
+  OwnerAuditRoute: typeof OwnerAuditRoute
+  OwnerCapstersRoute: typeof OwnerCapstersRoute
+  OwnerDashboardRoute: typeof OwnerDashboardRoute
+  OwnerHelpRoute: typeof OwnerHelpRoute
+  OwnerLoginRoute: typeof OwnerLoginRoute
+  OwnerServicesRoute: typeof OwnerServicesRoute
+  OwnerSettingsRoute: typeof OwnerSettingsRoute
   CustomerReceiptTransactionIdRoute: typeof CustomerReceiptTransactionIdRoute
 }
 
@@ -583,6 +674,55 @@ declare module '@tanstack/react-router' {
       path: '/customer/success'
       fullPath: '/customer/success'
       preLoaderRoute: typeof CustomerSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/audit': {
+      id: '/owner/audit'
+      path: '/owner/audit'
+      fullPath: '/owner/audit'
+      preLoaderRoute: typeof OwnerAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/capsters': {
+      id: '/owner/capsters'
+      path: '/owner/capsters'
+      fullPath: '/owner/capsters'
+      preLoaderRoute: typeof OwnerCapstersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/dashboard': {
+      id: '/owner/dashboard'
+      path: '/owner/dashboard'
+      fullPath: '/owner/dashboard'
+      preLoaderRoute: typeof OwnerDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/help': {
+      id: '/owner/help'
+      path: '/owner/help'
+      fullPath: '/owner/help'
+      preLoaderRoute: typeof OwnerHelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/login': {
+      id: '/owner/login'
+      path: '/owner/login'
+      fullPath: '/owner/login'
+      preLoaderRoute: typeof OwnerLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/services': {
+      id: '/owner/services'
+      path: '/owner/services'
+      fullPath: '/owner/services'
+      preLoaderRoute: typeof OwnerServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/settings': {
+      id: '/owner/settings'
+      path: '/owner/settings'
+      fullPath: '/owner/settings'
+      preLoaderRoute: typeof OwnerSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/capster/transactions/$transactionId': {
@@ -736,6 +876,13 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerServiceExecutionRoute: CustomerServiceExecutionRoute,
   CustomerServicesRoute: CustomerServicesRoute,
   CustomerSuccessRoute: CustomerSuccessRoute,
+  OwnerAuditRoute: OwnerAuditRoute,
+  OwnerCapstersRoute: OwnerCapstersRoute,
+  OwnerDashboardRoute: OwnerDashboardRoute,
+  OwnerHelpRoute: OwnerHelpRoute,
+  OwnerLoginRoute: OwnerLoginRoute,
+  OwnerServicesRoute: OwnerServicesRoute,
+  OwnerSettingsRoute: OwnerSettingsRoute,
   CustomerReceiptTransactionIdRoute: CustomerReceiptTransactionIdRoute,
 }
 export const routeTree = rootRouteImport
