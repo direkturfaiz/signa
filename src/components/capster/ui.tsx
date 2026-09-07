@@ -233,7 +233,7 @@ export function CapsterHeader({
   showActions?: boolean;
 }) {
   const router = useRouter();
-  const { transactions, capsterId } = useCapster();
+  const { transactions, capsterId, shiftInfo } = useCapster();
   const [showNotifications, setShowNotifications] = useState(false);
   const [headerPending, setHeaderPending] = useState<CapsterTransaction[]>([]);
   const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() =>
@@ -241,15 +241,28 @@ export function CapsterHeader({
   );
   const prevPendingIdsRef = useRef<Set<string> | null>(null);
 
+  const pathname = router.state.location.pathname;
+  const isCheckInPage = pathname.includes("/check-in");
+  const isShiftActive = shiftInfo.isCheckedIn && !shiftInfo.isShiftEnded;
+  // Notifikasi konfirmasi pembayaran HANYA boleh aktif jika capster sudah aktif check-in dan bukan di halaman check-in
+  const allowNotifications = Boolean(showActions && isShiftActive && !isCheckInPage);
+
+  // Jika sedang di halaman check-in, tutup toast konfirmasi yang mungkin masih aktif
+  useEffect(() => {
+    if (isCheckInPage) {
+      toast.dismiss();
+    }
+  }, [isCheckInPage]);
+
   // Sync dismissed IDs when capsterId changes
   useEffect(() => {
     setDismissedNotifIds(getStoredDismissedIds(capsterId));
   }, [capsterId]);
 
   // Background polling agar notifikasi selalu realtime di semua halaman capster
-  // CATATAN: Tidak memanggil capsterActions.setTransactions agar tidak menimpa state transaksi halaman aktif
+  // CATATAN: Hanya jalan jika allowNotifications aktif (sudah check-in & berada di halaman capster)
   useEffect(() => {
-    if (!capsterId) return;
+    if (!allowNotifications || !capsterId) return;
     let mounted = true;
 
     const fetchPending = async () => {
@@ -269,10 +282,11 @@ export function CapsterHeader({
       mounted = false;
       clearInterval(interval);
     };
-  }, [capsterId]);
+  }, [allowNotifications, capsterId]);
 
   // Gabungkan transaksi pending dari polling header dan transaksi dari store (deduplikasi by id)
   const allPendingTransactions = useMemo(() => {
+    if (!allowNotifications) return [];
     const map = new Map<string, CapsterTransaction>();
     for (const t of transactions) {
       if (t.status === "Menunggu" && (!capsterId || !t.capsterId || t.capsterId === capsterId)) {
@@ -285,7 +299,7 @@ export function CapsterHeader({
       }
     }
     return Array.from(map.values());
-  }, [transactions, headerPending, capsterId]);
+  }, [allowNotifications, transactions, headerPending, capsterId]);
 
   // Bersihkan ID dari dismissedNotifIds jika transaksi tersebut sudah dikonfirmasi atau dibatalkan
   useEffect(() => {
@@ -325,6 +339,8 @@ export function CapsterHeader({
 
   // Notifikasi Toast ketika ada transaksi baru yang masuk dan butuh konfirmasi
   useEffect(() => {
+    if (!allowNotifications) return;
+
     const currentPendingIds = new Set(visiblePendingTransactions.map((t) => t.id));
 
     // Pada render/mount pertama, rekam ID yang sudah ada agar tidak spam toast untuk transaksi lama saat halaman dibuka
