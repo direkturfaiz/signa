@@ -104,6 +104,8 @@ export const getCapsterTransactions = createServerFn({
             .select({
               id_booking: booking.id_booking,
               id_capster: booking.id_capster,
+              status: booking.status,
+              catatan: booking.catatan,
               capsterName: users.nama_lengkap,
             })
             .from(booking)
@@ -195,7 +197,11 @@ export const getCapsterTransactions = createServerFn({
       let displayStatus: "Selesai" | "Menunggu" | "Batal" = "Menunggu";
       if (r.status_transaksi === "paid") {
         displayStatus = "Selesai";
-      } else if (r.status_transaksi === "cancelled") {
+      } else if (
+        r.status_transaksi === "cancelled" ||
+        bInfo?.status === "cancelled" ||
+        pay?.status_pembayaran === "failed"
+      ) {
         displayStatus = "Batal";
       }
 
@@ -224,6 +230,7 @@ export const getCapsterTransactions = createServerFn({
         cashReceived,
         change,
         status: displayStatus,
+        notes: bInfo?.catatan ?? undefined,
         capsterId,
         capsterName,
       };

@@ -425,6 +425,7 @@ export const getTransactionDetail = createServerFn({
       paymentStatus: payment?.status_pembayaran ?? "pending",
       items,
       struk: strukData,
+      notes: bookingInfo?.catatan ?? null,
     };
   });
 

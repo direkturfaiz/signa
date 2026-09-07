@@ -28,6 +28,7 @@ import {
   confirmPaymentAndGenerateStruk,
   getTransactionDetail,
 } from "@/lib/bookings";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/capster/transactions/$transactionId")({
   head: () => ({
@@ -57,6 +58,17 @@ function CapsterTransactionDetailPage() {
       try {
         const detail = await getTransactionDetail({ data: { transactionId } });
         if (!mounted || !detail) return;
+        let mappedStatus: TransactionStatus = "Menunggu";
+        if (detail.status === "paid") {
+          mappedStatus = "Selesai";
+        } else if (
+          detail.status === "cancelled" ||
+          detail.bookingStatus === "cancelled" ||
+          detail.paymentStatus === "failed"
+        ) {
+          mappedStatus = "Batal";
+        }
+
         const mapped: CapsterTransaction = {
           id: detail.transactionId,
           date: new Date(detail.createdAt).toLocaleDateString("id-ID", {
@@ -86,7 +98,8 @@ function CapsterTransactionDetailPage() {
           paymentMethod: detail.paymentMethod as "tunai" | "qris" | "transfer",
           cashReceived: detail.total,
           change: 0,
-          status: detail.status === "paid" ? "Selesai" : "Menunggu",
+          status: mappedStatus,
+          notes: detail.notes ?? storeTrx?.notes ?? undefined,
           capsterId: detail.capsterId ?? storeTrx?.capsterId ?? "",
           capsterName: detail.capsterName,
         };
@@ -220,9 +233,13 @@ function CapsterTransactionDetailPage() {
               </div>
             ) : null}
             {trx.notes ? (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Catatan</span>
-                <span className="font-semibold">{trx.notes}</span>
+              <div className="flex justify-between items-start gap-2">
+                <span className="text-muted-foreground shrink-0">
+                  {trx.status === "Batal" ? "Alasan Pembatalan" : "Catatan"}
+                </span>
+                <span className={cn("font-semibold text-right", trx.status === "Batal" ? "text-danger" : "text-foreground")}>
+                  {trx.notes}
+                </span>
               </div>
             ) : null}
             <div className="flex justify-between">
@@ -313,6 +330,23 @@ function CapsterTransactionDetailPage() {
               <ArrowLeft className="h-4 w-4" strokeWidth={2} />
               KEMBALI KE DASHBOARD
             </SecondaryButton>
+          </div>
+        ) : trx.status === "Batal" ? (
+          <div className="flex flex-col gap-2 w-full">
+            <div className="flex items-center justify-center gap-2 rounded-[12px] border border-danger/35 bg-danger/10 p-3 text-[13px] font-bold text-danger">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>Pesanan Ini Telah Dibatalkan</span>
+            </div>
+            <PrimaryButton
+              onClick={() =>
+                navigate({
+                  to: "/capster/dashboard",
+                })
+              }
+            >
+              <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+              KEMBALI KE DASHBOARD
+            </PrimaryButton>
           </div>
         ) : (
           <PrimaryButton

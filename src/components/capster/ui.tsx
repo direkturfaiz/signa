@@ -764,11 +764,13 @@ export function DailySummaryCard({
 }
 
 // Badge Status Transaksi
-export function TransactionStatusBadge({ status }: { status: TransactionStatus }) {
-  const map: Record<TransactionStatus, { bg: string; text: string; icon: LucideIcon }> = {
-    Selesai: { bg: "bg-success/20 ring-success/40", text: "text-success", icon: CheckCircle2 },
-    Menunggu: { bg: "bg-warning/20 ring-warning/40", text: "text-warning", icon: Clock },
-    Batal: { bg: "bg-danger/20 ring-danger/40", text: "text-danger", icon: AlertCircle },
+export function TransactionStatusBadge({ status }: { status: TransactionStatus | string }) {
+  const map: Record<string, { bg: string; text: string; icon: LucideIcon; label: string }> = {
+    Selesai: { bg: "bg-success/20 ring-success/40", text: "text-success", icon: CheckCircle2, label: "Selesai" },
+    Menunggu: { bg: "bg-warning/20 ring-warning/40", text: "text-warning", icon: Clock, label: "Menunggu" },
+    Batal: { bg: "bg-danger/20 ring-danger/40", text: "text-danger", icon: AlertCircle, label: "Dibatalkan" },
+    cancelled: { bg: "bg-danger/20 ring-danger/40", text: "text-danger", icon: AlertCircle, label: "Dibatalkan" },
+    Dibatalkan: { bg: "bg-danger/20 ring-danger/40", text: "text-danger", icon: AlertCircle, label: "Dibatalkan" },
   };
 
   const conf = map[status] ?? map.Menunggu;
@@ -783,7 +785,7 @@ export function TransactionStatusBadge({ status }: { status: TransactionStatus }
       )}
     >
       <Icon className="h-3 w-3" strokeWidth={2.5} />
-      {status}
+      {conf.label}
     </span>
   );
 }
