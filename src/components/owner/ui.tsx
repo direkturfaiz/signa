@@ -72,9 +72,9 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
   };
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-[#0A1424] border-r border-slate-800/80 min-h-screen text-slate-300 p-5 select-none shrink-0">
+    <aside className="hidden lg:flex flex-col w-64 bg-[#0A1424] border-r border-slate-800/80 h-screen sticky top-0 text-slate-300 p-5 select-none shrink-0 z-40 overflow-y-auto">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-2 py-3 mb-6">
+      <div className="flex items-center gap-3 px-2 py-3 mb-6 shrink-0">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/25">
           <Scissors className="h-5 w-5 rotate-90" />
         </div>
@@ -113,10 +113,10 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
       </nav>
 
       {/* Divider */}
-      <div className="h-px bg-slate-800/80 my-4" />
+      <div className="h-px bg-slate-800/80 my-4 shrink-0" />
 
       {/* Bottom Nav */}
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 shrink-0">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePath === item.href;
