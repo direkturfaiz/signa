@@ -38,6 +38,7 @@ import {
 } from "recharts";
 
 import { formatRupiah } from "@/lib/format";
+import { BarberinLogo } from "@/components/barberin/ui";
 import {
   type OwnerDashboardMetrics,
   type OwnerPeriodFilter,
@@ -54,7 +55,7 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
   const navigate = useNavigate();
   const navItems = [
     { label: "Dashboard", href: "/owner/dashboard", icon: Home },
-    { label: "Services", href: "/owner/services", icon: Scissors },
+    { label: "Layanan", href: "/owner/services", icon: Scissors },
     { label: "Gaji", href: "/owner/gaji", icon: Wallet },
     { label: "Manajemen Akun Capster", href: "/owner/capsters", icon: Users },
     { label: "Audit Aktivitas", href: "/owner/audit-activities", icon: Activity },
@@ -75,9 +76,7 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
     <aside className="hidden lg:flex flex-col w-64 bg-[#0A1424] border-r border-slate-800/80 h-screen sticky top-0 text-slate-300 p-5 select-none shrink-0 z-40 overflow-y-auto">
       {/* Brand Header */}
       <div className="flex items-center gap-3 px-2 py-3 mb-6 shrink-0">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/25">
-          <Scissors className="h-5 w-5 rotate-90" />
-        </div>
+        <BarberinLogo className="h-10 w-10 shrink-0" />
         <div>
           <div className="font-extrabold tracking-wider text-white text-base leading-none">
             BARBERIN
@@ -155,23 +154,40 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
 export function OwnerHeader({
   onRefresh,
   isRefreshing,
+  variant = "dark",
 }: {
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  variant?: "dark" | "light";
 }) {
   const { user, searchKeyword } = useOwner();
+  const isLight = variant === "light";
 
   return (
-    <header className="hidden lg:flex items-center justify-between px-8 py-4 bg-[#0A1424] border-b border-slate-800/80 sticky top-0 z-30">
+    <header
+      className={`hidden lg:flex items-center justify-between px-8 py-3.5 sticky top-0 z-30 transition-colors ${
+        isLight
+          ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs"
+          : "bg-[#0A1424] border-b border-slate-800/80"
+      }`}
+    >
       {/* Search Input */}
       <div className="relative w-96">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Search
+          className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${
+            isLight ? "text-slate-400" : "text-slate-400"
+          }`}
+        />
         <input
           type="text"
           value={searchKeyword}
           onChange={(e) => ownerActions.setSearchKeyword(e.target.value)}
-          placeholder="Cari transaksi, layanan, atau capster..."
-          className="w-full pl-10 pr-4 py-2 bg-[#121F33] text-sm text-white placeholder-slate-400 border border-slate-700/60 rounded-xl focus:outline-none focus:border-blue-500 transition-colors"
+          placeholder="Cari layanan, kategori, atau deskripsi..."
+          className={`w-full pl-10 pr-4 py-2 text-sm rounded-xl focus:outline-none focus:border-blue-500 transition-colors ${
+            isLight
+              ? "bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:bg-white"
+              : "bg-[#121F33] text-white placeholder-slate-400 border border-slate-700/60"
+          }`}
         />
       </div>
 
@@ -182,10 +198,14 @@ export function OwnerHeader({
             type="button"
             onClick={onRefresh}
             title="Refresh Data"
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors relative"
+            className={`p-2 rounded-xl transition-colors relative ${
+              isLight
+                ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+            }`}
           >
             <RefreshCw
-              className={`h-4 w-4 ${isRefreshing ? "animate-spin text-blue-400" : ""}`}
+              className={`h-4 w-4 ${isRefreshing ? "animate-spin text-blue-500" : ""}`}
             />
           </button>
         )}
@@ -194,24 +214,44 @@ export function OwnerHeader({
         <div className="relative">
           <button
             type="button"
-            className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors relative"
+            className={`p-2 rounded-xl transition-colors relative ${
+              isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+            }`}
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#0A1424]" />
+            <span
+              className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ${
+                isLight ? "ring-white" : "ring-[#0A1424]"
+              }`}
+            />
           </button>
         </div>
 
         {/* Owner Profile */}
-        <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
+        <div
+          className={`flex items-center gap-3 pl-3 border-l ${
+            isLight ? "border-slate-200" : "border-slate-800"
+          }`}
+        >
           <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-500/20">
             {user.nama_lengkap.charAt(0) || "O"}
           </div>
           <div className="text-left">
-            <div className="text-sm font-semibold text-white leading-tight">
+            <div
+              className={`text-sm font-semibold leading-tight ${
+                isLight ? "text-slate-900" : "text-white"
+              }`}
+            >
               {user.nama_lengkap || "Owner"}
             </div>
-            <div className="text-xs text-slate-400 leading-tight">
-              {user.barbershopName || "Barbershop Barbershop"}
+            <div
+              className={`text-xs leading-tight ${
+                isLight ? "text-slate-500" : "text-slate-400"
+              }`}
+            >
+              {user.barbershopName || "Barberin Barbershop"}
             </div>
           </div>
         </div>
@@ -227,18 +267,21 @@ export function OwnerMobileHeader({
   activePath,
   onRefresh,
   isRefreshing,
+  variant = "dark",
 }: {
   activePath: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  variant?: "dark" | "light";
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { user } = useOwner();
   const navigate = useNavigate();
+  const isLight = variant === "light";
 
   const navItems = [
     { label: "Dashboard", href: "/owner/dashboard", icon: Home },
-    { label: "Services", href: "/owner/services", icon: Scissors },
+    { label: "Layanan", href: "/owner/services", icon: Scissors },
     { label: "Gaji", href: "/owner/gaji", icon: Wallet },
     { label: "Manajemen Akun Capster", href: "/owner/capsters", icon: Users },
     { label: "Audit Aktivitas", href: "/owner/audit-activities", icon: Activity },
@@ -255,20 +298,32 @@ export function OwnerMobileHeader({
 
   return (
     <>
-      <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0A1424] border-b border-slate-800 sticky top-0 z-40">
+      <header
+        className={`lg:hidden flex items-center justify-between px-4 py-3 sticky top-0 z-40 transition-colors ${
+          isLight
+            ? "bg-white border-b border-slate-200 shadow-xs text-slate-900"
+            : "bg-[#0A1424] border-b border-slate-800 text-white"
+        }`}
+      >
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800"
+            className={`p-1.5 rounded-lg transition-colors ${
+              isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                : "text-slate-300 hover:text-white hover:bg-slate-800"
+            }`}
           >
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white">
-              <Scissors className="h-4 w-4 rotate-90" />
-            </div>
-            <span className="font-extrabold text-white tracking-wider text-sm">
+            <BarberinLogo className="h-7 w-7 shrink-0" />
+            <span
+              className={`font-extrabold tracking-wider text-sm ${
+                isLight ? "text-slate-900" : "text-white"
+              }`}
+            >
               BARBERIN
             </span>
           </div>
@@ -279,10 +334,14 @@ export function OwnerMobileHeader({
             <button
               type="button"
               onClick={onRefresh}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white"
+              className={`p-1.5 rounded-lg transition-colors ${
+                isLight
+                  ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                  : "text-slate-400 hover:text-white"
+              }`}
             >
               <RefreshCw
-                className={`h-4 w-4 ${isRefreshing ? "animate-spin text-blue-400" : ""}`}
+                className={`h-4 w-4 ${isRefreshing ? "animate-spin text-blue-500" : ""}`}
               />
             </button>
           )}
@@ -290,14 +349,22 @@ export function OwnerMobileHeader({
           <div className="relative">
             <button
               type="button"
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white"
+              className={`p-1.5 rounded-lg transition-colors ${
+                isLight
+                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800"
+              }`}
             >
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
+              <span
+                className={`absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ${
+                  isLight ? "ring-white" : "ring-[#0A1424]"
+                }`}
+              />
             </button>
           </div>
 
-          <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
+          <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-blue-500/20">
             {user.nama_lengkap.charAt(0) || "O"}
           </div>
         </div>
@@ -313,9 +380,7 @@ export function OwnerMobileHeader({
           <div className="relative w-72 bg-[#0A1424] border-r border-slate-800 h-full p-5 flex flex-col z-10 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                  <Scissors className="h-4 w-4 rotate-90" />
-                </div>
+                <BarberinLogo className="h-8 w-8 shrink-0" />
                 <div className="font-extrabold text-white text-base">BARBERIN</div>
               </div>
               <button
@@ -374,7 +439,7 @@ export function OwnerMobileHeader({
 export function OwnerBottomNav({ activePath }: { activePath: string }) {
   const navItems = [
     { label: "Dashboard", href: "/owner/dashboard", icon: Home },
-    { label: "Services", href: "/owner/services", icon: Scissors },
+    { label: "Layanan", href: "/owner/services", icon: Scissors },
     { label: "Gaji", href: "/owner/gaji", icon: Wallet },
     { label: "Aktivitas", href: "/owner/audit-activities", icon: Activity },
     { label: "Keuangan", href: "/owner/audit-finance", icon: FileText },

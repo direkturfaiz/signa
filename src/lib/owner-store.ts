@@ -7,6 +7,11 @@ export type OwnerUser = {
   nama_lengkap: string;
   role: string;
   barbershopName: string;
+  no_hp?: string;
+  alamat?: string;
+  jam_buka?: string;
+  jam_tutup?: string;
+  no_hp_barbershop?: string;
 };
 
 export type OwnerState = {
@@ -22,6 +27,11 @@ const DEFAULT_OWNER_USER: OwnerUser = {
   nama_lengkap: "Owner Barbershop",
   role: "owner",
   barbershopName: "BARBERIN Barbershop",
+  no_hp: "0812-3456-7890",
+  alamat: "Jl. Jenderal Soedirman No. 123, Purbalingga",
+  jam_buka: "08:00",
+  jam_tutup: "21:00",
+  no_hp_barbershop: "0812-3456-7890",
 };
 
 const STORAGE_KEY = "barberin_owner_state_v1";
@@ -43,7 +53,10 @@ function loadInitialState(): OwnerState {
       return {
         ...parsed,
         isLoggedIn: parsed.isLoggedIn ?? true,
-        user: parsed.user ?? DEFAULT_OWNER_USER,
+        user: {
+          ...DEFAULT_OWNER_USER,
+          ...(parsed.user || {}),
+        },
         activePeriod: parsed.activePeriod ?? "today",
         searchKeyword: "",
       };
@@ -79,6 +92,17 @@ export const ownerActions = {
       isLoggedIn: true,
       user: {
         ...DEFAULT_OWNER_USER,
+        ...user,
+      },
+    };
+    emitChange();
+  },
+
+  updateUser: (user: Partial<OwnerUser>) => {
+    currentState = {
+      ...currentState,
+      user: {
+        ...currentState.user,
         ...user,
       },
     };

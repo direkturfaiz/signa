@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Scissors, Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { BarberinLogo } from "@/components/barberin/ui";
 
 import { loginOwner } from "@/lib/owner";
 import { ownerActions, useOwner } from "@/lib/owner-store";
@@ -18,8 +19,8 @@ export const Route = createFileRoute("/owner/login")({
 
 function OwnerLoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("owner@barberin.test");
-  const [password, setPassword] = useState("owner123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,18 +60,6 @@ function OwnerLoginPage() {
     }
   };
 
-  const handleDemoLogin = () => {
-    ownerActions.login({
-      id_user: "demo-owner",
-      email: "owner@barberin.test",
-      nama_lengkap: "Owner Barbershop",
-      role: "owner",
-      barbershopName: "BARBERIN Headquarter",
-    });
-    toast.success("Masuk sebagai Demo Owner");
-    navigate({ to: "/owner/dashboard", replace: true });
-  };
-
   return (
     <div className="min-h-screen bg-[#070D18] flex items-center justify-center p-4 antialiased">
       <div className="w-full max-w-md bg-[#0F1D33] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
@@ -80,9 +69,7 @@ function OwnerLoginPage() {
 
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-8 relative z-10">
-          <div className="h-14 w-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xl shadow-blue-500/25 mb-4">
-            <Scissors className="h-7 w-7 rotate-90" />
-          </div>
+          <BarberinLogo className="h-16 w-16 mb-4 drop-shadow-lg" />
           <h1 className="text-2xl font-black text-white tracking-wider">BARBERIN</h1>
           <p className="text-xs text-slate-400 mt-1">Owner Management System</p>
           <div className="mt-3 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] font-semibold text-blue-400">
@@ -156,18 +143,6 @@ function OwnerLoginPage() {
             )}
           </button>
         </form>
-
-        {/* Quick Demo Button */}
-        <div className="mt-6 pt-5 border-t border-slate-800 text-center relative z-10">
-          <p className="text-xs text-slate-400 mb-2.5">Atau akses cepat untuk pengujian:</p>
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="w-full py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition-colors"
-          >
-            ⚡ Masuk Cepat sebagai Demo Owner
-          </button>
-        </div>
       </div>
     </div>
   );
