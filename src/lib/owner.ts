@@ -218,6 +218,7 @@ export const getOwnerDashboardMetrics = createServerFn({
     ) => data,
   )
   .handler(async ({ data }): Promise<OwnerDashboardMetrics> => {
+    const now = new Date();
     const period = data?.period || "today";
     const { startDate, endDate, prevStartDate, prevEndDate, deltaLabel } =
       getPeriodDates(period, data?.startDate, data?.endDate);
