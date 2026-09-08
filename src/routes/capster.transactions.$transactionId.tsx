@@ -23,7 +23,11 @@ import {
 } from "@/components/barberin/ui";
 import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
 import { formatRupiah, formatTransactionId, formatCustomerId } from "@/lib/format";
-import { useCapster, type CapsterTransaction } from "@/lib/capster-store";
+import {
+  useCapster,
+  type CapsterTransaction,
+  type TransactionStatus,
+} from "@/lib/capster-store";
 import {
   confirmPaymentAndGenerateStruk,
   getTransactionDetail,

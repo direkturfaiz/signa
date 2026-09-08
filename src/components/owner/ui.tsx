@@ -23,6 +23,7 @@ import {
   Menu,
   ArrowRight,
   RefreshCw,
+  Activity,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -54,8 +55,10 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
   const navItems = [
     { label: "Dashboard", href: "/owner/dashboard", icon: Home },
     { label: "Services", href: "/owner/services", icon: Scissors },
-    { label: "Capster", href: "/owner/capsters", icon: Users },
-    { label: "Audit", href: "/owner/audit", icon: FileText },
+    { label: "Gaji", href: "/owner/gaji", icon: Wallet },
+    { label: "Manajemen Akun Capster", href: "/owner/capsters", icon: Users },
+    { label: "Audit Aktivitas", href: "/owner/audit-activities", icon: Activity },
+    { label: "Audit Keuangan", href: "/owner/audit-finance", icon: FileText },
   ];
 
   const bottomItems = [
@@ -236,8 +239,10 @@ export function OwnerMobileHeader({
   const navItems = [
     { label: "Dashboard", href: "/owner/dashboard", icon: Home },
     { label: "Services", href: "/owner/services", icon: Scissors },
-    { label: "Capster", href: "/owner/capsters", icon: Users },
-    { label: "Audit", href: "/owner/audit", icon: FileText },
+    { label: "Gaji", href: "/owner/gaji", icon: Wallet },
+    { label: "Manajemen Akun Capster", href: "/owner/capsters", icon: Users },
+    { label: "Audit Aktivitas", href: "/owner/audit-activities", icon: Activity },
+    { label: "Audit Keuangan", href: "/owner/audit-finance", icon: FileText },
     { label: "Setelan", href: "/owner/settings", icon: Settings },
     { label: "Pusat Bantuan", href: "/owner/help", icon: HelpCircle },
   ];
@@ -370,8 +375,9 @@ export function OwnerBottomNav({ activePath }: { activePath: string }) {
   const navItems = [
     { label: "Dashboard", href: "/owner/dashboard", icon: Home },
     { label: "Services", href: "/owner/services", icon: Scissors },
-    { label: "Capster", href: "/owner/capsters", icon: Users },
-    { label: "Audit", href: "/owner/audit", icon: FileText },
+    { label: "Gaji", href: "/owner/gaji", icon: Wallet },
+    { label: "Aktivitas", href: "/owner/audit-activities", icon: Activity },
+    { label: "Keuangan", href: "/owner/audit-finance", icon: FileText },
   ];
 
   return (
@@ -415,8 +421,8 @@ export function OwnerSummaryCard({
   icon: React.ComponentType<{ className?: string }>;
   iconColor: string;
   iconBg: string;
-  trend?: string;
-  trendUp?: boolean;
+  trend?: string | undefined;
+  trendUp?: boolean | undefined;
 }) {
   return (
     <div className="bg-[#0F1D33] border border-slate-800/80 rounded-2xl p-4 md:p-5 flex flex-col justify-between shadow-sm hover:border-slate-700 transition-colors">

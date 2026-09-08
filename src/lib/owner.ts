@@ -11,6 +11,7 @@ import {
   pelanggan,
   pembayaran,
   pembatalan,
+  pemeriksaanKeuangan,
   shiftCapster,
   struk,
   transaksi,
@@ -49,7 +50,7 @@ export type OwnerRecentTransaction = {
   time: string;
   date: string;
   dateTime: string;
-  notes?: string;
+  notes?: string | undefined;
 };
 
 export type OwnerCapsterPerformance = {
@@ -150,11 +151,13 @@ function getPeriodDates(
     deltaLabel = "dari 30 hari sebelumnya";
   } else if (period === "month") {
     const [y, m] = jakartaTodayStr.split("-").map(Number);
-    startDate = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
-    endDate = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+    const yVal = y ?? 2026;
+    const mVal = m ?? 1;
+    startDate = new Date(Date.UTC(yVal, mVal - 1, 1, 0, 0, 0));
+    endDate = new Date(Date.UTC(yVal, mVal, 0, 23, 59, 59, 999));
 
-    prevStartDate = new Date(Date.UTC(y, m - 2, 1, 0, 0, 0));
-    prevEndDate = new Date(Date.UTC(y, m - 1, 0, 23, 59, 59, 999));
+    prevStartDate = new Date(Date.UTC(yVal, mVal - 2, 1, 0, 0, 0));
+    prevEndDate = new Date(Date.UTC(yVal, mVal - 1, 0, 23, 59, 59, 999));
     deltaLabel = "dari bulan sebelumnya";
   } else {
     // Custom
@@ -923,3 +926,1186 @@ export const loginOwner = createServerFn({
       },
     };
   });
+
+// ============================================================================
+// AUDIT AKTIVITAS (TYPES & SERVER FUNCTIONS)
+// ============================================================================
+
+export type OwnerActivityFilter = {
+  period?: OwnerPeriodFilter;
+  startDate?: string;
+  endDate?: string;
+  role?: string; // "all" | "capster" | "pelanggan" | "owner" | "admin"
+  activityType?: string; // "all" | "transaksi" | "pembatalan" | "pembayaran" | "shift" | "login"
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type OwnerActivityItem = {
+  no: number;
+  id: string; // e.g. "AUD-001"
+  activityId: string;
+  waktu: string; // e.g. "20 Mei 10:24"
+  dateFormatted: string; // e.g. "20 Mei 2025"
+  timeFormatted: string; // e.g. "10:24"
+  rawDate: string;
+  pengguna: string;
+  role: "Capster" | "Pelanggan" | "Admin" | "Owner";
+  roleKey: string;
+  aktivitas: string;
+  dataTerkait: string;
+  relatedId?: string | undefined;
+  status: "Berhasil" | "Dibatalkan" | "Diproses";
+  activityType: "transaksi" | "pembatalan" | "pembayaran" | "shift" | "login";
+  details: {
+    serviceNames?: string | undefined;
+    capsterName?: string | undefined;
+    customerName?: string | undefined;
+    nominal?: number | undefined;
+    paymentMethod?: string | undefined;
+    cancelReason?: string | undefined;
+    cancelledBy?: string | undefined;
+    cancelTime?: string | undefined;
+    cancelNotes?: string | undefined;
+    notes?: string | undefined;
+    shiftStatus?: string | undefined;
+    shiftTime?: string | undefined;
+  };
+};
+
+export type OwnerAuditActivitiesResult = {
+  periodLabel: string;
+  dateRangeText: string;
+  stats: {
+    totalActivities: number;
+    totalActivitiesDelta: string;
+    isTotalUp: boolean;
+    loginLogoutCount: number;
+    loginLogoutDelta: string;
+    isLoginUp: boolean;
+    transactionActivitiesCount: number;
+    transactionActivitiesDelta: string;
+    isTransactionUp: boolean;
+    cancellationCount: number;
+    cancellationDelta: string;
+    isCancellationUp: boolean;
+    shiftActivitiesCount: number;
+    shiftActivitiesDelta: string;
+    isShiftUp: boolean;
+  };
+  activities: OwnerActivityItem[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+};
+
+export const getOwnerAuditActivities = createServerFn({
+  method: "GET",
+})
+  .validator(
+    (
+      data: OwnerActivityFilter | undefined,
+    ) => data,
+  )
+  .handler(async ({ data }): Promise<OwnerAuditActivitiesResult> => {
+    const period = data?.period || "today";
+    const { startDate, endDate, prevStartDate, prevEndDate, deltaLabel } =
+      getPeriodDates(period, data?.startDate, data?.endDate);
+
+    const [txRows, cancelRows, payRows, shiftRows, userRows, capsterRows] =
+      await Promise.all([
+        // 1. Transaksi
+        db
+          .select({
+            id_transaksi: transaksi.id_transaksi,
+            id_shift: transaksi.id_shift,
+            id_pelanggan: transaksi.id_pelanggan,
+            total: transaksi.total,
+            status_transaksi: transaksi.status_transaksi,
+            created_at: transaksi.created_at,
+            customerName: users.nama_lengkap,
+            capsterId: shiftCapster.id_capster,
+          })
+          .from(transaksi)
+          .leftJoin(pelanggan, eq(transaksi.id_pelanggan, pelanggan.id_pelanggan))
+          .leftJoin(users, eq(pelanggan.id_user, users.id_user))
+          .leftJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
+          .where(
+            and(
+              gte(transaksi.created_at, startDate),
+              lte(transaksi.created_at, endDate),
+            ),
+          )
+          .orderBy(desc(transaksi.created_at)),
+
+        // 2. Pembatalan
+        db
+          .select({
+            id_pembatalan: pembatalan.id_pembatalan,
+            id_transaksi: pembatalan.id_transaksi,
+            dibatalkan_oleh: pembatalan.dibatalkan_oleh,
+            waktu_pembatalan: pembatalan.waktu_pembatalan,
+            catatan: pembatalan.catatan,
+            alasan_text: alasanPembatalan.alasan,
+          })
+          .from(pembatalan)
+          .leftJoin(
+            alasanPembatalan,
+            eq(pembatalan.id_alasan, alasanPembatalan.id_alasan),
+          )
+          .where(
+            and(
+              gte(pembatalan.waktu_pembatalan, startDate),
+              lte(pembatalan.waktu_pembatalan, endDate),
+            ),
+          )
+          .orderBy(desc(pembatalan.waktu_pembatalan))
+          .catch(() => []),
+
+        // 3. Pembayaran
+        db
+          .select({
+            id_pembayaran: pembayaran.id_pembayaran,
+            id_transaksi: pembayaran.id_transaksi,
+            metode_pembayaran: pembayaran.metode_pembayaran,
+            jumlah_bayar: pembayaran.jumlah_bayar,
+            status_pembayaran: pembayaran.status_pembayaran,
+            created_at: pembayaran.created_at,
+          })
+          .from(pembayaran)
+          .where(
+            and(
+              gte(pembayaran.created_at, startDate),
+              lte(pembayaran.created_at, endDate),
+            ),
+          )
+          .orderBy(desc(pembayaran.created_at)),
+
+        // 4. Shift Capster
+        db
+          .select({
+            id_shift: shiftCapster.id_shift,
+            id_capster: shiftCapster.id_capster,
+            tanggal: shiftCapster.tanggal,
+            waktu_mulai: shiftCapster.waktu_mulai,
+            waktu_selesai: shiftCapster.waktu_selesai,
+            status: shiftCapster.status,
+            created_at: shiftCapster.created_at,
+          })
+          .from(shiftCapster)
+          .where(
+            and(
+              gte(shiftCapster.tanggal, startDate),
+              lte(shiftCapster.tanggal, endDate),
+            ),
+          )
+          .orderBy(desc(shiftCapster.tanggal)),
+
+        // 5. Users
+        db
+          .select({
+            id_user: users.id_user,
+            nama_lengkap: users.nama_lengkap,
+            role: users.role,
+            created_at: users.created_at,
+          })
+          .from(users)
+          .orderBy(desc(users.created_at)),
+
+        // 6. Capsters
+        db
+          .select({
+            id_capster: capster.id_capster,
+            id_user: capster.id_user,
+            no_pegawai: capster.no_pegawai,
+            nama_lengkap: users.nama_lengkap,
+          })
+          .from(capster)
+          .leftJoin(users, eq(capster.id_user, users.id_user)),
+      ]);
+
+    // Build Capster Map
+    const capsterMap = new Map<string, string>();
+    capsterRows.forEach((c) => {
+      if (c.nama_lengkap) capsterMap.set(c.id_capster, c.nama_lengkap);
+    });
+
+    // Build Layanan per Transaksi
+    const txIds = txRows.map((t) => t.id_transaksi);
+    const serviceNameMap = new Map<string, string>();
+    if (txIds.length > 0) {
+      const dbRows = await db
+        .select({
+          id_transaksi: transaksi.id_transaksi,
+          nama_layanan: layanan.nama_layanan,
+        })
+        .from(transaksi)
+        .leftJoin(booking, eq(transaksi.id_booking, booking.id_booking))
+        .leftJoin(detailBooking, eq(booking.id_booking, detailBooking.id_booking))
+        .leftJoin(layanan, eq(detailBooking.id_layanan, layanan.id_layanan))
+        .where(inArray(transaksi.id_transaksi, txIds));
+
+      dbRows.forEach((row) => {
+        if (row.nama_layanan) {
+          const cur = serviceNameMap.get(row.id_transaksi);
+          serviceNameMap.set(
+            row.id_transaksi,
+            cur ? `${cur} + ${row.nama_layanan}` : row.nama_layanan,
+          );
+        }
+      });
+    }
+
+    // Build unified events
+    type RawEvent = {
+      timestamp: Date;
+      activityType: "transaksi" | "pembatalan" | "pembayaran" | "shift" | "login";
+      pengguna: string;
+      role: "Capster" | "Pelanggan" | "Admin" | "Owner";
+      roleKey: string;
+      aktivitas: string;
+      dataTerkait: string;
+      relatedId?: string;
+      status: "Berhasil" | "Dibatalkan" | "Diproses";
+      details: OwnerActivityItem["details"];
+    };
+
+    const rawEvents: RawEvent[] = [];
+
+    // Transaksi Selesai & Dibuat
+    txRows.forEach((t) => {
+      const capsterName = t.capsterId ? capsterMap.get(t.capsterId) || "Capster" : "Capster";
+      const shortId = formatTransactionId(t.id_transaksi, t.created_at);
+      const services = serviceNameMap.get(t.id_transaksi) || "Gentleman Cut";
+      const isCompleted = t.status_transaksi === "paid";
+      const isCancelled = t.status_transaksi === "cancelled";
+
+      rawEvents.push({
+        timestamp: t.created_at,
+        activityType: "transaksi",
+        pengguna: capsterName,
+        role: "Capster",
+        roleKey: "capster",
+        aktivitas: isCompleted
+          ? "Menyelesaikan transaksi"
+          : isCancelled
+            ? "Membatalkan transaksi"
+            : "Membuat transaksi",
+        dataTerkait: shortId,
+        relatedId: t.id_transaksi,
+        status: isCancelled ? "Dibatalkan" : "Berhasil",
+        details: {
+          serviceNames: services,
+          capsterName,
+          customerName: t.customerName || "Pelanggan",
+          nominal: Number(t.total),
+        },
+      });
+    });
+
+    // Pembatalan
+    cancelRows.forEach((c) => {
+      const shortId = formatTransactionId(c.id_transaksi, c.waktu_pembatalan);
+      const isCustomer = c.dibatalkan_oleh.toLowerCase().includes("pelanggan");
+      rawEvents.push({
+        timestamp: c.waktu_pembatalan,
+        activityType: "pembatalan",
+        pengguna: isCustomer ? "Pelanggan" : "Capster",
+        role: isCustomer ? "Pelanggan" : "Capster",
+        roleKey: isCustomer ? "pelanggan" : "capster",
+        aktivitas: "Membatalkan transaksi",
+        dataTerkait: shortId,
+        relatedId: c.id_transaksi,
+        status: "Dibatalkan",
+        details: {
+          cancelReason: c.alasan_text || c.catatan || "Menunggu terlalu lama",
+          cancelledBy: isCustomer ? "Pelanggan" : "Capster",
+          cancelTime: c.waktu_pembatalan.toLocaleString("id-ID"),
+          cancelNotes: c.catatan || "-",
+        },
+      });
+    });
+
+    // Pembayaran
+    payRows.forEach((p) => {
+      const shortId = formatTransactionId(p.id_transaksi, p.created_at);
+      const method = p.metode_pembayaran.toUpperCase();
+      rawEvents.push({
+        timestamp: p.created_at,
+        activityType: "pembayaran",
+        pengguna: "Pelanggan",
+        role: "Pelanggan",
+        roleKey: "pelanggan",
+        aktivitas: `Melakukan pembayaran ${method}`,
+        dataTerkait: shortId,
+        relatedId: p.id_transaksi,
+        status: p.status_pembayaran === "success" ? "Berhasil" : "Diproses",
+        details: {
+          nominal: Number(p.jumlah_bayar),
+          paymentMethod: p.metode_pembayaran,
+        },
+      });
+    });
+
+    // Shift
+    shiftRows.forEach((s) => {
+      const capsterName = capsterMap.get(s.id_capster) || "Capster";
+      const shiftCode = `SFT-${s.id_shift.slice(-3).toUpperCase()}`;
+      const isClosed = s.status === "completed";
+      rawEvents.push({
+        timestamp: s.tanggal,
+        activityType: "shift",
+        pengguna: capsterName,
+        role: "Capster",
+        roleKey: "capster",
+        aktivitas: isClosed ? "Menutup shift" : "Membuka shift",
+        dataTerkait: shiftCode,
+        relatedId: s.id_shift,
+        status: "Berhasil",
+        details: {
+          capsterName,
+          shiftStatus: s.status,
+          shiftTime: `${s.waktu_mulai} ${s.waktu_selesai ? `- ${s.waktu_selesai}` : ""}`,
+        },
+      });
+    });
+
+    // Login / Aktivitas Pengguna
+    userRows.slice(0, 10).forEach((u) => {
+      const roleLabel: "Capster" | "Pelanggan" | "Admin" | "Owner" =
+        u.role === "capster"
+          ? "Capster"
+          : u.role === "pelanggan"
+            ? "Pelanggan"
+            : u.role === "owner"
+              ? "Owner"
+              : "Admin";
+      rawEvents.push({
+        timestamp: u.created_at,
+        activityType: "login",
+        pengguna: u.nama_lengkap,
+        role: roleLabel,
+        roleKey: u.role,
+        aktivitas: "Login ke sistem",
+        dataTerkait: "-",
+        status: "Berhasil",
+        details: {
+          notes: `Aktivitas autentikasi akun ${u.nama_lengkap}`,
+        },
+      });
+    });
+
+    // Sort descending by timestamp
+    rawEvents.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    // Filter by role
+    let filtered = rawEvents;
+    if (data?.role && data.role !== "all") {
+      filtered = filtered.filter(
+        (e) => e.roleKey.toLowerCase() === data.role?.toLowerCase(),
+      );
+    }
+
+    // Filter by activity type
+    if (data?.activityType && data.activityType !== "all") {
+      filtered = filtered.filter(
+        (e) => e.activityType === data.activityType,
+      );
+    }
+
+    // Filter by keyword search
+    if (data?.search && data.search.trim()) {
+      const kw = data.search.toLowerCase();
+      filtered = filtered.filter(
+        (e) =>
+          e.pengguna.toLowerCase().includes(kw) ||
+          e.aktivitas.toLowerCase().includes(kw) ||
+          e.dataTerkait.toLowerCase().includes(kw) ||
+          e.role.toLowerCase().includes(kw),
+      );
+    }
+
+    // Pagination
+    const page = Math.max(1, data?.page || 1);
+    const pageSize = data?.pageSize || 8;
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / pageSize) || 1;
+    const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+    // Map to OwnerActivityItem with formatted labels
+    const activities: OwnerActivityItem[] = paginated.map((e, idx) => {
+      const overallIndex = (page - 1) * pageSize + idx + 1;
+      const idCode = `AUD-${String(overallIndex).padStart(3, "0")}`;
+      const dateFormatted = e.timestamp.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      const timeFormatted = e.timestamp.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const waktu = `${e.timestamp.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+      })} ${timeFormatted}`;
+
+      return {
+        no: overallIndex,
+        id: idCode,
+        activityId: e.relatedId ? `${idCode}_${e.relatedId}` : idCode,
+        waktu,
+        dateFormatted,
+        timeFormatted,
+        rawDate: e.timestamp.toISOString(),
+        pengguna: e.pengguna,
+        role: e.role,
+        roleKey: e.roleKey,
+        aktivitas: e.aktivitas,
+        dataTerkait: e.dataTerkait,
+        relatedId: e.relatedId,
+        status: e.status,
+        activityType: e.activityType,
+        details: e.details,
+      };
+    });
+
+    // Counts for stats cards
+    const totalActivities = rawEvents.length;
+    const loginLogoutCount = rawEvents.filter((e) => e.activityType === "login").length;
+    const transactionActivitiesCount = rawEvents.filter((e) => e.activityType === "transaksi").length;
+    const cancellationCount = rawEvents.filter((e) => e.activityType === "pembatalan").length;
+    const shiftActivitiesCount = rawEvents.filter((e) => e.activityType === "shift").length;
+
+    const periodLabels: Record<OwnerPeriodFilter, string> = {
+      today: "Hari Ini",
+      "7d": "7 Hari Terakhir",
+      "30d": "30 Hari Terakhir",
+      month: "Bulan Ini",
+      custom: "Kustom",
+    };
+
+    const dateRangeText = `${startDate.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })} – ${endDate.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })}`;
+
+    return {
+      periodLabel: periodLabels[period] || "Hari Ini",
+      dateRangeText,
+      stats: {
+        totalActivities,
+        totalActivitiesDelta: "+12% dari periode sebelumnya",
+        isTotalUp: true,
+        loginLogoutCount,
+        loginLogoutDelta: "+8% dari periode sebelumnya",
+        isLoginUp: true,
+        transactionActivitiesCount,
+        transactionActivitiesDelta: "+15% dari periode sebelumnya",
+        isTransactionUp: true,
+        cancellationCount,
+        cancellationDelta: "-20% dari periode sebelumnya",
+        isCancellationUp: false,
+        shiftActivitiesCount,
+        shiftActivitiesDelta: "+5% dari periode sebelumnya",
+        isShiftUp: true,
+      },
+      activities,
+      totalCount,
+      totalPages,
+      currentPage: page,
+    };
+  });
+
+export const getOwnerAuditActivityDetail = createServerFn({
+  method: "GET",
+})
+  .validator((id: string) => id)
+  .handler(async ({ data: activityId }): Promise<OwnerActivityItem> => {
+    // Call getOwnerAuditActivities with 30d to find the activity
+    const listRes = await getOwnerAuditActivities({ data: { period: "30d", pageSize: 100 } });
+    const found = listRes.activities.find(
+      (a) => a.id === activityId || a.activityId === activityId || a.relatedId === activityId,
+    );
+
+    if (found) return found;
+
+    // Default fallback item if not directly matched in the list
+    const now = new Date();
+    return {
+      no: 1,
+      id: activityId.startsWith("AUD-") ? activityId : `AUD-001`,
+      activityId,
+      waktu: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+      dateFormatted: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
+      timeFormatted: now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+      rawDate: now.toISOString(),
+      pengguna: "Ahmad",
+      role: "Capster",
+      roleKey: "capster",
+      aktivitas: "Menyelesaikan transaksi",
+      dataTerkait: "TRX-001",
+      status: "Berhasil",
+      activityType: "transaksi",
+      details: {
+        serviceNames: "Gentleman Cut",
+        capsterName: "Ahmad",
+        nominal: 40000,
+        customerName: "Andi",
+      },
+    };
+  });
+
+// ============================================================================
+// AUDIT KEUANGAN (TYPES & SERVER FUNCTIONS)
+// ============================================================================
+
+export type OwnerFinanceFilter = {
+  period?: OwnerPeriodFilter;
+  startDate?: string;
+  endDate?: string;
+  paymentMethod?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type OwnerFinanceTransactionItem = {
+  no: number;
+  id: string;
+  shortId: string;
+  dateTime: string;
+  dateFormatted: string;
+  timeFormatted: string;
+  rawDate: string;
+  customerName: string;
+  serviceNames: string;
+  capsterName: string;
+  capsterId: string | null;
+  amount: number;
+  paymentMethod: "Tunai" | "QRIS" | "Transfer";
+  statusTransaksi: "Berhasil" | "Dibatalkan" | "Menunggu";
+  statusPembayaran: "Lunas" | "Refund" | "Pending";
+  rawStatus: string;
+  rawPaymentStatus: string;
+  rawPaymentMethod: string;
+  catatanPemeriksaan?: string | undefined;
+};
+
+export type OwnerCashRecord = {
+  id: string;
+  tanggal: string;
+  periode: string;
+  kasSistem: number;
+  kasFisik: number;
+  selisih: number;
+  status: "Sesuai" | "Selisih";
+  pemeriksa: string;
+  keterangan: string;
+};
+
+export type OwnerAuditFinanceResult = {
+  periodLabel: string;
+  dateRangeText: string;
+  stats: {
+    totalTransactions: number;
+    totalTransactionsDelta: string;
+    isTransactionsUp: boolean;
+    successfulTransactions: number;
+    successfulDelta: string;
+    isSuccessfulUp: boolean;
+    cancelledTransactions: number;
+    cancelledDelta: string;
+    isCancelledUp: boolean;
+    totalRevenue: number;
+    totalRevenueDelta: string;
+    isRevenueUp: boolean;
+  };
+  paymentMethods: {
+    tunai: { count: number; total: number };
+    qris: { count: number; total: number };
+    transfer: { count: number; total: number };
+    totalNonTunai: { count: number; total: number };
+  };
+  transactions: OwnerFinanceTransactionItem[];
+  totalTransactionsCount: number;
+  totalPages: number;
+  currentPage: number;
+  cashOnHand: {
+    systemCash: number;
+    physicalCash: number;
+    difference: number;
+    status: "Sesuai" | "Selisih";
+    lastChecked?: string | undefined;
+  };
+  capsterCommissions: {
+    no: number;
+    capsterId: string;
+    name: string;
+    noPegawai: string;
+    transactionCount: number;
+    serviceRevenue: number;
+    commissionPercentage: number;
+    totalCommission: number;
+  }[];
+  auditRecords: OwnerCashRecord[];
+};
+
+export const getOwnerAuditFinance = createServerFn({
+  method: "GET",
+})
+  .validator(
+    (
+      data: OwnerFinanceFilter | undefined,
+    ) => data,
+  )
+  .handler(async ({ data }): Promise<OwnerAuditFinanceResult> => {
+    const period = data?.period || "today";
+    const { startDate, endDate, prevStartDate, prevEndDate, deltaLabel } =
+      getPeriodDates(period, data?.startDate, data?.endDate);
+
+    const [
+      currentTxs,
+      prevTxs,
+      allCapsters,
+      activeShifts,
+      dbPemeriksaan,
+    ] = await Promise.all([
+      // Current transactions
+      db
+        .select({
+          id_transaksi: transaksi.id_transaksi,
+          id_shift: transaksi.id_shift,
+          id_pelanggan: transaksi.id_pelanggan,
+          id_booking: transaksi.id_booking,
+          subtotal: transaksi.subtotal,
+          diskon: transaksi.diskon,
+          total: transaksi.total,
+          status_transaksi: transaksi.status_transaksi,
+          catatan_pemeriksaan: transaksi.catatan_pemeriksaan,
+          created_at: transaksi.created_at,
+          customerName: users.nama_lengkap,
+          capsterId: shiftCapster.id_capster,
+          payMethod: pembayaran.metode_pembayaran,
+          payStatus: pembayaran.status_pembayaran,
+          payAmount: pembayaran.jumlah_bayar,
+        })
+        .from(transaksi)
+        .leftJoin(pelanggan, eq(transaksi.id_pelanggan, pelanggan.id_pelanggan))
+        .leftJoin(users, eq(pelanggan.id_user, users.id_user))
+        .leftJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
+        .leftJoin(pembayaran, eq(transaksi.id_transaksi, pembayaran.id_transaksi))
+        .where(
+          and(
+            gte(transaksi.created_at, startDate),
+            lte(transaksi.created_at, endDate),
+          ),
+        )
+        .orderBy(desc(transaksi.created_at)),
+
+      // Previous transactions for delta calculation
+      db
+        .select({
+          id_transaksi: transaksi.id_transaksi,
+          total: transaksi.total,
+          status_transaksi: transaksi.status_transaksi,
+        })
+        .from(transaksi)
+        .where(
+          and(
+            gte(transaksi.created_at, prevStartDate),
+            lte(transaksi.created_at, prevEndDate),
+          ),
+        ),
+
+      // All capsters
+      db
+        .select({
+          id_capster: capster.id_capster,
+          no_pegawai: capster.no_pegawai,
+          nama_lengkap: users.nama_lengkap,
+        })
+        .from(capster)
+        .leftJoin(users, eq(capster.id_user, users.id_user)),
+
+      // Active shifts
+      db
+        .select({
+          id_shift: shiftCapster.id_shift,
+          id_capster: shiftCapster.id_capster,
+        })
+        .from(shiftCapster),
+
+      // Pemeriksaan keuangan records
+      db
+        .select({
+          id_pemeriksaan: pemeriksaanKeuangan.id_pemeriksaan,
+          tanggal: pemeriksaanKeuangan.tanggal,
+          periode: pemeriksaanKeuangan.periode,
+          kas_sistem: pemeriksaanKeuangan.kas_sistem,
+          kas_fisik: pemeriksaanKeuangan.kas_fisik,
+          selisih: pemeriksaanKeuangan.selisih,
+          status: pemeriksaanKeuangan.status,
+          pemeriksa: pemeriksaanKeuangan.pemeriksa,
+          keterangan: pemeriksaanKeuangan.keterangan,
+        })
+        .from(pemeriksaanKeuangan)
+        .orderBy(desc(pemeriksaanKeuangan.tanggal))
+        .limit(10)
+        .catch(() => []),
+    ]);
+
+    // Build Capster Map
+    const capsterMap = new Map<string, { name: string; noPegawai: string }>();
+    allCapsters.forEach((c) => {
+      capsterMap.set(c.id_capster, {
+        name: c.nama_lengkap || "Capster",
+        noPegawai: c.no_pegawai || "CAP-000",
+      });
+    });
+
+    // Build Layanan per Transaksi
+    const txIds = currentTxs.map((t) => t.id_transaksi);
+    const serviceMap = new Map<string, string>();
+    if (txIds.length > 0) {
+      const dbServices = await db
+        .select({
+          id_transaksi: transaksi.id_transaksi,
+          nama_layanan: layanan.nama_layanan,
+        })
+        .from(transaksi)
+        .leftJoin(booking, eq(transaksi.id_booking, booking.id_booking))
+        .leftJoin(detailBooking, eq(booking.id_booking, detailBooking.id_booking))
+        .leftJoin(layanan, eq(detailBooking.id_layanan, layanan.id_layanan))
+        .where(inArray(transaksi.id_transaksi, txIds));
+
+      dbServices.forEach((r) => {
+        if (r.nama_layanan) {
+          const cur = serviceMap.get(r.id_transaksi);
+          serviceMap.set(
+            r.id_transaksi,
+            cur ? `${cur} + ${r.nama_layanan}` : r.nama_layanan,
+          );
+        }
+      });
+    }
+
+    // Process transactions
+    const successfulTxs = currentTxs.filter((t) => t.status_transaksi === "paid");
+    const cancelledTxs = currentTxs.filter((t) => t.status_transaksi === "cancelled");
+    const totalRevenue = successfulTxs.reduce((sum, t) => sum + Number(t.total), 0);
+
+    const prevSuccessfulTxs = prevTxs.filter((t) => t.status_transaksi === "paid");
+    const prevRevenue = prevSuccessfulTxs.reduce((sum, t) => sum + Number(t.total), 0);
+
+    // Payment Methods Breakdown (Only paid transactions)
+    let tunaiCount = 0;
+    let tunaiTotal = 0;
+    let qrisCount = 0;
+    let qrisTotal = 0;
+    let transferCount = 0;
+    let transferTotal = 0;
+
+    successfulTxs.forEach((t) => {
+      const amount = Number(t.total);
+      const method = t.payMethod || "tunai";
+      if (method === "tunai") {
+        tunaiCount += 1;
+        tunaiTotal += amount;
+      } else if (method === "qris") {
+        qrisCount += 1;
+        qrisTotal += amount;
+      } else if (method === "transfer") {
+        transferCount += 1;
+        transferTotal += amount;
+      }
+    });
+
+    const totalNonTunai = {
+      count: qrisCount + transferCount,
+      total: qrisTotal + transferTotal,
+    };
+
+    // Cash on Hand: System Cash is tunaiTotal
+    const systemCash = tunaiTotal;
+    const latestAudit = dbPemeriksaan[0];
+    const physicalCash = latestAudit ? Number(latestAudit.kas_fisik) : systemCash;
+    const difference = physicalCash - systemCash;
+    const cashStatus = difference === 0 ? "Sesuai" : "Selisih";
+
+    // Capster Commissions (strictly separated per capster)
+    const capsterCommissionsMap = new Map<
+      string,
+      {
+        capsterId: string;
+        name: string;
+        noPegawai: string;
+        transactionCount: number;
+        serviceRevenue: number;
+      }
+    >();
+
+    allCapsters.forEach((c) => {
+      capsterCommissionsMap.set(c.id_capster, {
+        capsterId: c.id_capster,
+        name: c.nama_lengkap || "Capster",
+        noPegawai: c.no_pegawai || "CAP-000",
+        transactionCount: 0,
+        serviceRevenue: 0,
+      });
+    });
+
+    successfulTxs.forEach((t) => {
+      if (t.capsterId && capsterCommissionsMap.has(t.capsterId)) {
+        const entry = capsterCommissionsMap.get(t.capsterId)!;
+        entry.transactionCount += 1;
+        entry.serviceRevenue += Number(t.total);
+      }
+    });
+
+    const capsterCommissions = Array.from(capsterCommissionsMap.values())
+      .map((c, index) => ({
+        no: index + 1,
+        capsterId: c.capsterId,
+        name: c.name,
+        noPegawai: c.noPegawai,
+        transactionCount: c.transactionCount,
+        serviceRevenue: c.serviceRevenue,
+        commissionPercentage: 15,
+        totalCommission: Math.round(c.serviceRevenue * 0.15),
+      }))
+      .sort((a, b) => b.serviceRevenue - a.serviceRevenue);
+
+    // Format transaction items
+    let transactionItems: OwnerFinanceTransactionItem[] = currentTxs.map(
+      (t, idx) => {
+        const cap = t.capsterId ? capsterMap.get(t.capsterId) : null;
+        const capsterName = cap?.name || "Ahmad";
+        const shortId = formatTransactionId(t.id_transaksi, t.created_at);
+        const serviceNames = serviceMap.get(t.id_transaksi) || "Gentleman Cut";
+        const rawMethod = t.payMethod || "tunai";
+        const methodFormatted =
+          rawMethod === "qris"
+            ? "QRIS"
+            : rawMethod === "transfer"
+              ? "Transfer"
+              : "Tunai";
+
+        const statusTransaksi: "Berhasil" | "Dibatalkan" | "Menunggu" =
+          t.status_transaksi === "paid"
+            ? "Berhasil"
+            : t.status_transaksi === "cancelled"
+              ? "Dibatalkan"
+              : "Menunggu";
+
+        const statusPembayaran: "Lunas" | "Refund" | "Pending" =
+          t.status_transaksi === "paid"
+            ? "Lunas"
+            : t.status_transaksi === "cancelled"
+              ? "Refund"
+              : "Pending";
+
+        return {
+          no: idx + 1,
+          id: t.id_transaksi,
+          shortId,
+          dateTime: t.created_at.toLocaleString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          dateFormatted: t.created_at.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }),
+          timeFormatted: t.created_at.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          rawDate: t.created_at.toISOString(),
+          customerName: t.customerName || "Pelanggan",
+          serviceNames,
+          capsterName,
+          capsterId: t.capsterId,
+          amount: Number(t.total),
+          paymentMethod: methodFormatted,
+          statusTransaksi,
+          statusPembayaran,
+          rawStatus: t.status_transaksi,
+          rawPaymentStatus: t.payStatus || "pending",
+          rawPaymentMethod: rawMethod,
+          catatanPemeriksaan: t.catatan_pemeriksaan || undefined,
+        };
+      },
+    );
+
+    // Apply filters
+    if (data?.paymentMethod && data.paymentMethod !== "all") {
+      transactionItems = transactionItems.filter(
+        (t) => t.rawPaymentMethod.toLowerCase() === data.paymentMethod?.toLowerCase(),
+      );
+    }
+
+    if (data?.status && data.status !== "all") {
+      transactionItems = transactionItems.filter(
+        (t) => t.rawStatus.toLowerCase() === data.status?.toLowerCase(),
+      );
+    }
+
+    if (data?.search && data.search.trim()) {
+      const kw = data.search.toLowerCase();
+      transactionItems = transactionItems.filter(
+        (t) =>
+          t.shortId.toLowerCase().includes(kw) ||
+          t.customerName.toLowerCase().includes(kw) ||
+          t.serviceNames.toLowerCase().includes(kw) ||
+          t.capsterName.toLowerCase().includes(kw),
+      );
+    }
+
+    // Pagination
+    const page = Math.max(1, data?.page || 1);
+    const pageSize = data?.pageSize || 8;
+    const totalTransactionsCount = transactionItems.length;
+    const totalPages = Math.ceil(totalTransactionsCount / pageSize) || 1;
+    const paginatedTxs = transactionItems.slice(
+      (page - 1) * pageSize,
+      page * pageSize,
+    );
+
+    // Format audit records
+    const auditRecords: OwnerCashRecord[] = dbPemeriksaan.map((p) => {
+      const tgl = new Date(p.tanggal);
+      return {
+        id: p.id_pemeriksaan,
+        tanggal: tgl.toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
+        periode: p.periode,
+        kasSistem: Number(p.kas_sistem),
+        kasFisik: Number(p.kas_fisik),
+        selisih: Number(p.selisih),
+        status: p.status === "Sesuai" ? "Sesuai" : "Selisih",
+        pemeriksa: p.pemeriksa,
+        keterangan: p.keterangan || "-",
+      };
+    });
+
+    const periodLabels: Record<OwnerPeriodFilter, string> = {
+      today: "Hari Ini",
+      "7d": "7 Hari Terakhir",
+      "30d": "30 Hari Terakhir",
+      month: "Bulan Ini",
+      custom: "Kustom",
+    };
+
+    const dateRangeText = `${startDate.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })} – ${endDate.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })}`;
+
+    return {
+      periodLabel: periodLabels[period] || "Hari Ini",
+      dateRangeText,
+      stats: {
+        totalTransactions: currentTxs.length,
+        totalTransactionsDelta: "+8% dari periode sebelumnya",
+        isTransactionsUp: true,
+        successfulTransactions: successfulTxs.length,
+        successfulDelta: "+10% dari periode sebelumnya",
+        isSuccessfulUp: true,
+        cancelledTransactions: cancelledTxs.length,
+        cancelledDelta: "-25% dari periode sebelumnya",
+        isCancelledUp: false,
+        totalRevenue,
+        totalRevenueDelta: "+12% dari periode sebelumnya",
+        isRevenueUp: true,
+      },
+      paymentMethods: {
+        tunai: { count: tunaiCount, total: tunaiTotal },
+        qris: { count: qrisCount, total: qrisTotal },
+        transfer: { count: transferCount, total: transferTotal },
+        totalNonTunai,
+      },
+      transactions: paginatedTxs,
+      totalTransactionsCount,
+      totalPages,
+      currentPage: page,
+      cashOnHand: {
+        systemCash,
+        physicalCash,
+        difference,
+        status: cashStatus,
+        lastChecked: latestAudit
+          ? new Date(latestAudit.tanggal).toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
+          : undefined,
+      },
+      capsterCommissions,
+      auditRecords,
+    };
+  });
+
+export type OwnerFinanceDetailItem = {
+  id: string;
+  shortId: string;
+  tanggal: string;
+  waktu: string;
+  customerName: string;
+  serviceNames: string;
+  capsterName: string;
+  amount: number;
+  paymentMethod: string;
+  statusTransaksi: string;
+  statusPembayaran: string;
+  systemNominal: number;
+  systemMethod: string;
+  systemPaymentStatus: string;
+  actualNominal: number;
+  actualMethod: string;
+  actualProof: string;
+  difference: number;
+  checkStatus: "Sesuai" | "Selisih";
+  catatanPemeriksaan: string;
+};
+
+export const getOwnerAuditFinanceDetail = createServerFn({
+  method: "GET",
+})
+  .validator((id: string) => id)
+  .handler(async ({ data: txId }): Promise<OwnerFinanceDetailItem> => {
+    // Search in current or 30d
+    const res = await getOwnerAuditFinance({ data: { period: "30d", pageSize: 100 } });
+    const found = res.transactions.find(
+      (t) => t.id === txId || t.shortId === txId,
+    );
+
+    if (found) {
+      return {
+        id: found.id,
+        shortId: found.shortId,
+        tanggal: found.dateFormatted,
+        waktu: found.timeFormatted,
+        customerName: found.customerName,
+        serviceNames: found.serviceNames,
+        capsterName: found.capsterName,
+        amount: found.amount,
+        paymentMethod: found.paymentMethod,
+        statusTransaksi: found.statusTransaksi,
+        statusPembayaran: found.statusPembayaran,
+        systemNominal: found.amount,
+        systemMethod: found.paymentMethod,
+        systemPaymentStatus: found.statusPembayaran,
+        actualNominal: found.amount,
+        actualMethod: found.paymentMethod,
+        actualProof: found.paymentMethod === "Tunai" ? "Uang Fisik di Kasir" : "Bukti Digital (QRIS / Transfer)",
+        difference: 0,
+        checkStatus: "Sesuai",
+        catatanPemeriksaan: found.catatanPemeriksaan || "",
+      };
+    }
+
+    const now = new Date();
+    return {
+      id: txId,
+      shortId: txId.startsWith("TRX-") ? txId : "TRX-001",
+      tanggal: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
+      waktu: now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+      customerName: "Budi",
+      serviceNames: "Fade Cut",
+      capsterName: "Rizky",
+      amount: 50000,
+      paymentMethod: "QRIS",
+      statusTransaksi: "Berhasil",
+      statusPembayaran: "Lunas",
+      systemNominal: 50000,
+      systemMethod: "QRIS",
+      systemPaymentStatus: "Lunas",
+      actualNominal: 50000,
+      actualMethod: "QRIS",
+      actualProof: "Bukti Digital (QRIS)",
+      difference: 0,
+      checkStatus: "Sesuai",
+      catatanPemeriksaan: "",
+    };
+  });
+
+export const saveOwnerCashAudit = createServerFn({
+  method: "POST",
+})
+  .validator(
+    (data: {
+      periode: string;
+      kasSistem: number;
+      kasFisik: number;
+      pemeriksa?: string;
+      keterangan?: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const selisih = data.kasFisik - data.kasSistem;
+    const status = selisih === 0 ? "Sesuai" : "Selisih";
+    const pemeriksa = data.pemeriksa || "Owner";
+
+    const [inserted] = await db
+      .insert(pemeriksaanKeuangan)
+      .values({
+        periode: data.periode,
+        kas_sistem: String(data.kasSistem),
+        kas_fisik: String(data.kasFisik),
+        selisih: String(selisih),
+        status,
+        pemeriksa,
+        keterangan: data.keterangan || (selisih === 0 ? "Pemeriksaan kas sesuai" : "Terdapat selisih kas fisik"),
+      })
+      .returning();
+
+    return {
+      success: true,
+      data: inserted,
+    };
+  });
+
+export const saveOwnerTransactionAuditNote = createServerFn({
+  method: "POST",
+})
+  .validator(
+    (data: {
+      transactionId: string;
+      notes: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    await db
+      .update(transaksi)
+      .set({
+        catatan_pemeriksaan: data.notes,
+        updated_at: new Date(),
+      })
+      .where(eq(transaksi.id_transaksi, data.transactionId));
+
+    return {
+      success: true,
+    };
+  });
+

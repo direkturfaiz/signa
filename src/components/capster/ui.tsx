@@ -359,7 +359,7 @@ export function CapsterHeader({
         !dismissedNotifIds.includes(t.id),
     );
 
-    if (newlyArrived.length > 0) {
+    if (newlyArrived.length > 0 && newlyArrived[0]) {
       const latest = newlyArrived[0];
       const toastId = `pending-toast-${latest.id}`;
 
@@ -914,7 +914,8 @@ export function TransactionStatusBadge({ status }: { status: TransactionStatus |
     Dibatalkan: { bg: "bg-danger/20 ring-danger/40", text: "text-danger", icon: AlertCircle, label: "Dibatalkan" },
   };
 
-  const conf = map[status] ?? map.Menunggu;
+  const fallback = { bg: "bg-warning/20 ring-warning/40", text: "text-warning", icon: Clock, label: "Menunggu" };
+  const conf = map[status] ?? map["Menunggu"] ?? fallback;
   const Icon = conf.icon;
 
   return (

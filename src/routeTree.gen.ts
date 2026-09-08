@@ -31,8 +31,11 @@ import { Route as CustomerServiceExecutionRouteImport } from './routes/customer.
 import { Route as CustomerServicesRouteImport } from './routes/customer.services'
 import { Route as CustomerSuccessRouteImport } from './routes/customer.success'
 import { Route as OwnerAuditRouteImport } from './routes/owner.audit'
+import { Route as OwnerAuditActivitiesRouteImport } from './routes/owner.audit-activities'
+import { Route as OwnerAuditFinanceRouteImport } from './routes/owner.audit-finance'
 import { Route as OwnerCapstersRouteImport } from './routes/owner.capsters'
 import { Route as OwnerDashboardRouteImport } from './routes/owner.dashboard'
+import { Route as OwnerGajiRouteImport } from './routes/owner.gaji'
 import { Route as OwnerHelpRouteImport } from './routes/owner.help'
 import { Route as OwnerLoginRouteImport } from './routes/owner.login'
 import { Route as OwnerServicesRouteImport } from './routes/owner.services'
@@ -42,6 +45,8 @@ import { Route as CapsterTransactionsManualRouteImport } from './routes/capster.
 import { Route as CapsterTransactionsSuccessRouteImport } from './routes/capster.transactions.success'
 import { Route as CapsterTransactionsTodayRouteImport } from './routes/capster.transactions.today'
 import { Route as CustomerReceiptTransactionIdRouteImport } from './routes/customer.receipt.$transactionId'
+import { Route as OwnerAuditActivitiesIdRouteImport } from './routes/owner.audit-activities.$id'
+import { Route as OwnerAuditFinanceIdRouteImport } from './routes/owner.audit-finance.$id'
 import { Route as CapsterTransactionsTransactionIdReceiptRouteImport } from './routes/capster.transactions.$transactionId.receipt'
 import { Route as CapsterTransactionsManualCapsterRouteImport } from './routes/capster.transactions.manual.capster'
 import { Route as CapsterTransactionsManualDetailRouteImport } from './routes/capster.transactions.manual.detail'
@@ -160,6 +165,16 @@ const OwnerAuditRoute = OwnerAuditRouteImport.update({
   path: '/owner/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerAuditActivitiesRoute = OwnerAuditActivitiesRouteImport.update({
+  id: '/owner/audit-activities',
+  path: '/owner/audit-activities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerAuditFinanceRoute = OwnerAuditFinanceRouteImport.update({
+  id: '/owner/audit-finance',
+  path: '/owner/audit-finance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OwnerCapstersRoute = OwnerCapstersRouteImport.update({
   id: '/owner/capsters',
   path: '/owner/capsters',
@@ -168,6 +183,11 @@ const OwnerCapstersRoute = OwnerCapstersRouteImport.update({
 const OwnerDashboardRoute = OwnerDashboardRouteImport.update({
   id: '/owner/dashboard',
   path: '/owner/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerGajiRoute = OwnerGajiRouteImport.update({
+  id: '/owner/gaji',
+  path: '/owner/gaji',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OwnerHelpRoute = OwnerHelpRouteImport.update({
@@ -220,6 +240,16 @@ const CustomerReceiptTransactionIdRoute =
     path: '/customer/receipt/$transactionId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const OwnerAuditActivitiesIdRoute = OwnerAuditActivitiesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => OwnerAuditActivitiesRoute,
+} as any)
+const OwnerAuditFinanceIdRoute = OwnerAuditFinanceIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => OwnerAuditFinanceRoute,
+} as any)
 const CapsterTransactionsTransactionIdReceiptRoute =
   CapsterTransactionsTransactionIdReceiptRouteImport.update({
     id: '/receipt',
@@ -274,8 +304,11 @@ export interface FileRoutesByFullPath {
   '/customer/services': typeof CustomerServicesRoute
   '/customer/success': typeof CustomerSuccessRoute
   '/owner/audit': typeof OwnerAuditRoute
+  '/owner/audit-activities': typeof OwnerAuditActivitiesRouteWithChildren
+  '/owner/audit-finance': typeof OwnerAuditFinanceRouteWithChildren
   '/owner/capsters': typeof OwnerCapstersRoute
   '/owner/dashboard': typeof OwnerDashboardRoute
+  '/owner/gaji': typeof OwnerGajiRoute
   '/owner/help': typeof OwnerHelpRoute
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
@@ -285,6 +318,8 @@ export interface FileRoutesByFullPath {
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
   '/capster/transactions/today': typeof CapsterTransactionsTodayRoute
   '/customer/receipt/$transactionId': typeof CustomerReceiptTransactionIdRoute
+  '/owner/audit-activities/$id': typeof OwnerAuditActivitiesIdRoute
+  '/owner/audit-finance/$id': typeof OwnerAuditFinanceIdRoute
   '/capster/transactions/$transactionId/receipt': typeof CapsterTransactionsTransactionIdReceiptRoute
   '/capster/transactions/manual/capster': typeof CapsterTransactionsManualCapsterRoute
   '/capster/transactions/manual/detail': typeof CapsterTransactionsManualDetailRoute
@@ -314,8 +349,11 @@ export interface FileRoutesByTo {
   '/customer/services': typeof CustomerServicesRoute
   '/customer/success': typeof CustomerSuccessRoute
   '/owner/audit': typeof OwnerAuditRoute
+  '/owner/audit-activities': typeof OwnerAuditActivitiesRouteWithChildren
+  '/owner/audit-finance': typeof OwnerAuditFinanceRouteWithChildren
   '/owner/capsters': typeof OwnerCapstersRoute
   '/owner/dashboard': typeof OwnerDashboardRoute
+  '/owner/gaji': typeof OwnerGajiRoute
   '/owner/help': typeof OwnerHelpRoute
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
@@ -325,6 +363,8 @@ export interface FileRoutesByTo {
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
   '/capster/transactions/today': typeof CapsterTransactionsTodayRoute
   '/customer/receipt/$transactionId': typeof CustomerReceiptTransactionIdRoute
+  '/owner/audit-activities/$id': typeof OwnerAuditActivitiesIdRoute
+  '/owner/audit-finance/$id': typeof OwnerAuditFinanceIdRoute
   '/capster/transactions/$transactionId/receipt': typeof CapsterTransactionsTransactionIdReceiptRoute
   '/capster/transactions/manual/capster': typeof CapsterTransactionsManualCapsterRoute
   '/capster/transactions/manual/detail': typeof CapsterTransactionsManualDetailRoute
@@ -355,8 +395,11 @@ export interface FileRoutesById {
   '/customer/services': typeof CustomerServicesRoute
   '/customer/success': typeof CustomerSuccessRoute
   '/owner/audit': typeof OwnerAuditRoute
+  '/owner/audit-activities': typeof OwnerAuditActivitiesRouteWithChildren
+  '/owner/audit-finance': typeof OwnerAuditFinanceRouteWithChildren
   '/owner/capsters': typeof OwnerCapstersRoute
   '/owner/dashboard': typeof OwnerDashboardRoute
+  '/owner/gaji': typeof OwnerGajiRoute
   '/owner/help': typeof OwnerHelpRoute
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
@@ -366,6 +409,8 @@ export interface FileRoutesById {
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
   '/capster/transactions/today': typeof CapsterTransactionsTodayRoute
   '/customer/receipt/$transactionId': typeof CustomerReceiptTransactionIdRoute
+  '/owner/audit-activities/$id': typeof OwnerAuditActivitiesIdRoute
+  '/owner/audit-finance/$id': typeof OwnerAuditFinanceIdRoute
   '/capster/transactions/$transactionId/receipt': typeof CapsterTransactionsTransactionIdReceiptRoute
   '/capster/transactions/manual/capster': typeof CapsterTransactionsManualCapsterRoute
   '/capster/transactions/manual/detail': typeof CapsterTransactionsManualDetailRoute
@@ -397,8 +442,11 @@ export interface FileRouteTypes {
     | '/customer/services'
     | '/customer/success'
     | '/owner/audit'
+    | '/owner/audit-activities'
+    | '/owner/audit-finance'
     | '/owner/capsters'
     | '/owner/dashboard'
+    | '/owner/gaji'
     | '/owner/help'
     | '/owner/login'
     | '/owner/services'
@@ -408,6 +456,8 @@ export interface FileRouteTypes {
     | '/capster/transactions/success'
     | '/capster/transactions/today'
     | '/customer/receipt/$transactionId'
+    | '/owner/audit-activities/$id'
+    | '/owner/audit-finance/$id'
     | '/capster/transactions/$transactionId/receipt'
     | '/capster/transactions/manual/capster'
     | '/capster/transactions/manual/detail'
@@ -437,8 +487,11 @@ export interface FileRouteTypes {
     | '/customer/services'
     | '/customer/success'
     | '/owner/audit'
+    | '/owner/audit-activities'
+    | '/owner/audit-finance'
     | '/owner/capsters'
     | '/owner/dashboard'
+    | '/owner/gaji'
     | '/owner/help'
     | '/owner/login'
     | '/owner/services'
@@ -448,6 +501,8 @@ export interface FileRouteTypes {
     | '/capster/transactions/success'
     | '/capster/transactions/today'
     | '/customer/receipt/$transactionId'
+    | '/owner/audit-activities/$id'
+    | '/owner/audit-finance/$id'
     | '/capster/transactions/$transactionId/receipt'
     | '/capster/transactions/manual/capster'
     | '/capster/transactions/manual/detail'
@@ -477,8 +532,11 @@ export interface FileRouteTypes {
     | '/customer/services'
     | '/customer/success'
     | '/owner/audit'
+    | '/owner/audit-activities'
+    | '/owner/audit-finance'
     | '/owner/capsters'
     | '/owner/dashboard'
+    | '/owner/gaji'
     | '/owner/help'
     | '/owner/login'
     | '/owner/services'
@@ -488,6 +546,8 @@ export interface FileRouteTypes {
     | '/capster/transactions/success'
     | '/capster/transactions/today'
     | '/customer/receipt/$transactionId'
+    | '/owner/audit-activities/$id'
+    | '/owner/audit-finance/$id'
     | '/capster/transactions/$transactionId/receipt'
     | '/capster/transactions/manual/capster'
     | '/capster/transactions/manual/detail'
@@ -518,8 +578,11 @@ export interface RootRouteChildren {
   CustomerServicesRoute: typeof CustomerServicesRoute
   CustomerSuccessRoute: typeof CustomerSuccessRoute
   OwnerAuditRoute: typeof OwnerAuditRoute
+  OwnerAuditActivitiesRoute: typeof OwnerAuditActivitiesRouteWithChildren
+  OwnerAuditFinanceRoute: typeof OwnerAuditFinanceRouteWithChildren
   OwnerCapstersRoute: typeof OwnerCapstersRoute
   OwnerDashboardRoute: typeof OwnerDashboardRoute
+  OwnerGajiRoute: typeof OwnerGajiRoute
   OwnerHelpRoute: typeof OwnerHelpRoute
   OwnerLoginRoute: typeof OwnerLoginRoute
   OwnerServicesRoute: typeof OwnerServicesRoute
@@ -683,6 +746,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerAuditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/owner/audit-activities': {
+      id: '/owner/audit-activities'
+      path: '/owner/audit-activities'
+      fullPath: '/owner/audit-activities'
+      preLoaderRoute: typeof OwnerAuditActivitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/audit-finance': {
+      id: '/owner/audit-finance'
+      path: '/owner/audit-finance'
+      fullPath: '/owner/audit-finance'
+      preLoaderRoute: typeof OwnerAuditFinanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/owner/capsters': {
       id: '/owner/capsters'
       path: '/owner/capsters'
@@ -695,6 +772,13 @@ declare module '@tanstack/react-router' {
       path: '/owner/dashboard'
       fullPath: '/owner/dashboard'
       preLoaderRoute: typeof OwnerDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/gaji': {
+      id: '/owner/gaji'
+      path: '/owner/gaji'
+      fullPath: '/owner/gaji'
+      preLoaderRoute: typeof OwnerGajiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/owner/help': {
@@ -759,6 +843,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/customer/receipt/$transactionId'
       preLoaderRoute: typeof CustomerReceiptTransactionIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/owner/audit-activities/$id': {
+      id: '/owner/audit-activities/$id'
+      path: '/$id'
+      fullPath: '/owner/audit-activities/$id'
+      preLoaderRoute: typeof OwnerAuditActivitiesIdRouteImport
+      parentRoute: typeof OwnerAuditActivitiesRoute
+    }
+    '/owner/audit-finance/$id': {
+      id: '/owner/audit-finance/$id'
+      path: '/$id'
+      fullPath: '/owner/audit-finance/$id'
+      preLoaderRoute: typeof OwnerAuditFinanceIdRouteImport
+      parentRoute: typeof OwnerAuditFinanceRoute
     }
     '/capster/transactions/$transactionId/receipt': {
       id: '/capster/transactions/$transactionId/receipt'
@@ -854,6 +952,28 @@ const CapsterTransactionsRouteChildren: CapsterTransactionsRouteChildren = {
 const CapsterTransactionsRouteWithChildren =
   CapsterTransactionsRoute._addFileChildren(CapsterTransactionsRouteChildren)
 
+interface OwnerAuditActivitiesRouteChildren {
+  OwnerAuditActivitiesIdRoute: typeof OwnerAuditActivitiesIdRoute
+}
+
+const OwnerAuditActivitiesRouteChildren: OwnerAuditActivitiesRouteChildren = {
+  OwnerAuditActivitiesIdRoute: OwnerAuditActivitiesIdRoute,
+}
+
+const OwnerAuditActivitiesRouteWithChildren =
+  OwnerAuditActivitiesRoute._addFileChildren(OwnerAuditActivitiesRouteChildren)
+
+interface OwnerAuditFinanceRouteChildren {
+  OwnerAuditFinanceIdRoute: typeof OwnerAuditFinanceIdRoute
+}
+
+const OwnerAuditFinanceRouteChildren: OwnerAuditFinanceRouteChildren = {
+  OwnerAuditFinanceIdRoute: OwnerAuditFinanceIdRoute,
+}
+
+const OwnerAuditFinanceRouteWithChildren =
+  OwnerAuditFinanceRoute._addFileChildren(OwnerAuditFinanceRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DbTestRoute: DbTestRoute,
@@ -877,8 +997,11 @@ const rootRouteChildren: RootRouteChildren = {
   CustomerServicesRoute: CustomerServicesRoute,
   CustomerSuccessRoute: CustomerSuccessRoute,
   OwnerAuditRoute: OwnerAuditRoute,
+  OwnerAuditActivitiesRoute: OwnerAuditActivitiesRouteWithChildren,
+  OwnerAuditFinanceRoute: OwnerAuditFinanceRouteWithChildren,
   OwnerCapstersRoute: OwnerCapstersRoute,
   OwnerDashboardRoute: OwnerDashboardRoute,
+  OwnerGajiRoute: OwnerGajiRoute,
   OwnerHelpRoute: OwnerHelpRoute,
   OwnerLoginRoute: OwnerLoginRoute,
   OwnerServicesRoute: OwnerServicesRoute,

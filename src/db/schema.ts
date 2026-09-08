@@ -268,6 +268,7 @@ export const transaksi = pgTable(
     status_transaksi: transaksiStatusEnum("status_transaksi")
       .notNull()
       .default("pending"),
+    catatan_pemeriksaan: text("catatan_pemeriksaan"),
     created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
@@ -371,6 +372,22 @@ export const pembatalan = pgTable(
     index("pembatalan_alasan_idx").on(table.id_alasan),
   ],
 );
+
+// ==============================
+// 14. PEMERIKSAAN KEUANGAN (AUDIT KEUANGAN / CASH ON HAND)
+// ==============================
+export const pemeriksaanKeuangan = pgTable("pemeriksaan_keuangan", {
+  id_pemeriksaan: uuid("id_pemeriksaan").defaultRandom().primaryKey(),
+  tanggal: timestamp("tanggal", { mode: "date" }).notNull().defaultNow(),
+  periode: varchar("periode", { length: 50 }).notNull(),
+  kas_sistem: numeric("kas_sistem", { precision: 12, scale: 2 }).notNull(),
+  kas_fisik: numeric("kas_fisik", { precision: 12, scale: 2 }).notNull(),
+  selisih: numeric("selisih", { precision: 12, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(), // 'Sesuai' | 'Selisih'
+  pemeriksa: varchar("pemeriksa", { length: 100 }).notNull(),
+  keterangan: text("keterangan"),
+  created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
 
 // ==============================
 // RELATIONS

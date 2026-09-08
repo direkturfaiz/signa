@@ -28,19 +28,19 @@ export type CapsterTransaction = {
   date: string;
   time: string;
   customerName: string;
-  customerId?: string;
-  customerPhone?: string;
-  notes?: string;
+  customerId?: string | undefined;
+  customerPhone?: string | undefined;
+  notes?: string | undefined;
   items: { service: CapsterService; quantity: number }[];
   serviceNames: string;
   subtotal: number;
   discount: number;
   total: number;
   paymentMethod: PaymentMethod;
-  cashReceived?: number;
-  change?: number;
+  cashReceived?: number | undefined;
+  change?: number | undefined;
   status: TransactionStatus;
-  capsterId?: string;
+  capsterId?: string | undefined;
   capsterName: string;
 };
 
