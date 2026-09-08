@@ -3,7 +3,7 @@ import postgres from "postgres";
 
 const connectionString =
   process.env.DATABASE_URL ||
-  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres";
+  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres";
 const client = postgres(connectionString, { prepare: false });
 
 async function verify() {

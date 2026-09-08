@@ -3,9 +3,15 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const connectionString =
+const rawUrl =
   process.env["DATABASE_URL"] ||
-  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres";
+  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres";
+
+// Supabase pooler pada port 5432 adalah Session Mode (limit max 15 koneksi, rentan EMAXCONNSESSION di serverless Vercel).
+// Port 6543 adalah Transaction Mode yang didesain khusus untuk serverless/Vercel.
+const connectionString = rawUrl.includes("pooler.supabase.com:5432")
+  ? rawUrl.replace("pooler.supabase.com:5432", "pooler.supabase.com:6543")
+  : rawUrl;
 
 // Use a global singleton in dev to prevent connection leaks during Vite HMR
 const globalForDb = globalThis as unknown as {

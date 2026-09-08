@@ -307,7 +307,11 @@ export const getOwnerDashboardMetrics = createServerFn({
               lte(pembatalan.waktu_pembatalan, endDate),
             ),
           )
-          .orderBy(desc(pembatalan.waktu_pembatalan)),
+          .orderBy(desc(pembatalan.waktu_pembatalan))
+          .catch((err) => {
+            console.warn("Gagal mengambil data pembatalan:", err);
+            return [];
+          }),
       ]);
 
     // 2. Kalkulasi Ringkasan Pendapatan & Transaksi
@@ -776,7 +780,11 @@ export const getOwnerDashboardMetrics = createServerFn({
       .leftJoin(booking, eq(transaksi.id_booking, booking.id_booking))
       .leftJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
       .orderBy(desc(pembatalan.waktu_pembatalan))
-      .limit(10);
+      .limit(10)
+      .catch((err) => {
+        console.warn("Gagal mengambil daftar pembatalan terbaru:", err);
+        return [];
+      });
 
     const capsterUserMap = new Map<string, string>();
     allCapsters.forEach((c) => capsterUserMap.set(c.id_capster, c.nama_lengkap));
