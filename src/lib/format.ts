@@ -31,6 +31,24 @@ export function formatTanggalWaktu(iso: string): string {
   return `${formatTanggal(iso)} • ${formatWaktu(iso)}`;
 }
 
+export function formatWaktuRelatif(dateInput: Date | string): string {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return "-";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSec < 45) return "Baru saja";
+  if (diffMin < 60) return `${diffMin} mnt yang lalu`;
+  if (diffHours < 24) return `${diffHours} jam yang lalu`;
+  if (diffDays === 1) return "Kemarin";
+  if (diffDays < 7) return `${diffDays} hari lalu`;
+  return `${date.getDate()} ${BULAN[date.getMonth()] || ""}`;
+}
+
 /**
  * Format ID panjang (seperti UUID: 89010419-6294-4c10-a5aa-7c0d9b52bb7d)
  * menjadi format ringkas dan terstruktur:

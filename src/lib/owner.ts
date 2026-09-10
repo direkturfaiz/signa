@@ -17,7 +17,11 @@ import {
   transaksi,
   users,
 } from "@/db/schema";
-import { formatTransactionId } from "@/lib/format";
+import {
+  formatRupiah,
+  formatTransactionId,
+  formatWaktuRelatif,
+} from "@/lib/format";
 
 export type OwnerPeriodFilter = "today" | "7d" | "30d" | "month" | "custom";
 
@@ -76,6 +80,30 @@ export type OwnerRecentCancellation = {
   time: string;
   date: string;
   status: "Dibatalkan";
+};
+
+export type OwnerNotificationType =
+  | "tx_success"
+  | "tx_cancelled"
+  | "capster_checkin"
+  | "capster_shift_end";
+
+export type OwnerNotificationItem = {
+  id: string;
+  type: OwnerNotificationType;
+  title: string;
+  message: string;
+  detail?: string;
+  timeAgo: string;
+  timestamp: string;
+  link: string;
+  amount?: number;
+  metadata?: {
+    txId?: string;
+    capsterName?: string;
+    customerName?: string;
+    reason?: string;
+  };
 };
 
 export type OwnerDashboardMetrics = {
@@ -2108,4 +2136,290 @@ export const saveOwnerTransactionAuditNote = createServerFn({
       success: true,
     };
   });
+
+export const getOwnerNotifications = createServerFn({
+  method: "GET",
+})
+  .validator((data: { limit?: number } | undefined) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      notifications: OwnerNotificationItem[];
+      totalCount: number;
+    }> => {
+      const maxLimit = data?.limit || 25;
+
+      try {
+        // 1. Capster map
+        const capsterRows = await db
+          .select({
+            id_capster: capster.id_capster,
+            nama_lengkap: users.nama_lengkap,
+            no_pegawai: capster.no_pegawai,
+          })
+          .from(capster)
+          .leftJoin(users, eq(capster.id_user, users.id_user))
+          .catch(() => []);
+
+        const capsterMap = new Map<string, { name: string; noPegawai: string }>();
+        capsterRows.forEach((c) => {
+          if (c.id_capster) {
+            capsterMap.set(c.id_capster, {
+              name: c.nama_lengkap || "Capster",
+              noPegawai: c.no_pegawai || "Staff",
+            });
+          }
+        });
+
+        // 2. Transaksi Berhasil (paid)
+        const paidTxs = await db
+          .select({
+            id_transaksi: transaksi.id_transaksi,
+            id_booking: transaksi.id_booking,
+            id_shift: transaksi.id_shift,
+            total: transaksi.total,
+            created_at: transaksi.created_at,
+            customerName: users.nama_lengkap,
+            capsterId: shiftCapster.id_capster,
+          })
+          .from(transaksi)
+          .leftJoin(pelanggan, eq(transaksi.id_pelanggan, pelanggan.id_pelanggan))
+          .leftJoin(users, eq(pelanggan.id_user, users.id_user))
+          .leftJoin(shiftCapster, eq(transaksi.id_shift, shiftCapster.id_shift))
+          .where(eq(transaksi.status_transaksi, "paid"))
+          .orderBy(desc(transaksi.created_at))
+          .limit(15)
+          .catch(() => []);
+
+        const paidTxIds = paidTxs.map((t) => t.id_transaksi);
+        const serviceNameMap = new Map<string, string>();
+        if (paidTxIds.length > 0) {
+          const dbServices = await db
+            .select({
+              id_transaksi: transaksi.id_transaksi,
+              nama_layanan: layanan.nama_layanan,
+            })
+            .from(transaksi)
+            .leftJoin(booking, eq(transaksi.id_booking, booking.id_booking))
+            .leftJoin(detailBooking, eq(booking.id_booking, detailBooking.id_booking))
+            .leftJoin(layanan, eq(detailBooking.id_layanan, layanan.id_layanan))
+            .where(inArray(transaksi.id_transaksi, paidTxIds))
+            .catch(() => []);
+
+          dbServices.forEach((s) => {
+            if (s.nama_layanan) {
+              const cur = serviceNameMap.get(s.id_transaksi);
+              serviceNameMap.set(
+                s.id_transaksi,
+                cur ? `${cur}, ${s.nama_layanan}` : s.nama_layanan,
+              );
+            }
+          });
+        }
+
+        const txSuccessItems: OwnerNotificationItem[] = paidTxs.map((t) => {
+          const shortId = formatTransactionId(t.id_transaksi, t.created_at);
+          const cInfo = t.capsterId ? capsterMap.get(t.capsterId) : undefined;
+          const capsterName = cInfo?.name || "Capster";
+          const services = serviceNameMap.get(t.id_transaksi) || "Layanan Barbershop";
+          const nominal = Number(t.total) || 0;
+          return {
+            id: `tx-success-${t.id_transaksi}`,
+            type: "tx_success",
+            title: "Transaksi Berhasil",
+            message: `Transaksi ${shortId} senilai ${formatRupiah(nominal)} selesai.`,
+            detail: `${services} • Capster: ${capsterName} (${t.customerName || "Pelanggan"})`,
+            timeAgo: formatWaktuRelatif(t.created_at),
+            timestamp: t.created_at.toISOString(),
+            link: "/owner/dashboard",
+            amount: nominal,
+            metadata: {
+              txId: t.id_transaksi,
+              capsterName,
+              customerName: t.customerName || "Pelanggan",
+            },
+          };
+        });
+
+        // 3. Pembatalan Transaksi
+        const cancelRows = await db
+          .select({
+            id_pembatalan: pembatalan.id_pembatalan,
+            id_transaksi: pembatalan.id_transaksi,
+            dibatalkan_oleh: pembatalan.dibatalkan_oleh,
+            waktu_pembatalan: pembatalan.waktu_pembatalan,
+            catatan: pembatalan.catatan,
+            alasan: alasanPembatalan.alasan,
+          })
+          .from(pembatalan)
+          .leftJoin(alasanPembatalan, eq(pembatalan.id_alasan, alasanPembatalan.id_alasan))
+          .orderBy(desc(pembatalan.waktu_pembatalan))
+          .limit(15)
+          .catch(() => []);
+
+        const cancelledTxRows = await db
+          .select({
+            id_transaksi: transaksi.id_transaksi,
+            created_at: transaksi.created_at,
+            total: transaksi.total,
+            customerName: users.nama_lengkap,
+            catatan_pemeriksaan: transaksi.catatan_pemeriksaan,
+          })
+          .from(transaksi)
+          .leftJoin(pelanggan, eq(transaksi.id_pelanggan, pelanggan.id_pelanggan))
+          .leftJoin(users, eq(pelanggan.id_user, users.id_user))
+          .where(eq(transaksi.status_transaksi, "cancelled"))
+          .orderBy(desc(transaksi.created_at))
+          .limit(15)
+          .catch(() => []);
+
+        const handledTxIds = new Set<string>();
+        const txCancelledItems: OwnerNotificationItem[] = [];
+
+        cancelRows.forEach((c) => {
+          handledTxIds.add(c.id_transaksi);
+          const shortId = formatTransactionId(c.id_transaksi, c.waktu_pembatalan);
+          const isCust = c.dibatalkan_oleh?.toLowerCase().includes("pelanggan");
+          const actor = isCust ? "Pelanggan" : "Capster";
+          const reason = c.alasan || c.catatan || "Alasan tidak disertakan";
+          txCancelledItems.push({
+            id: `tx-cancel-${c.id_pembatalan || c.id_transaksi}`,
+            type: "tx_cancelled",
+            title: "Pembatalan Transaksi",
+            message: `Transaksi ${shortId} dibatalkan oleh ${actor}.`,
+            detail: `Alasan: ${reason}`,
+            timeAgo: formatWaktuRelatif(c.waktu_pembatalan),
+            timestamp: c.waktu_pembatalan.toISOString(),
+            link: "/owner/audit-activities",
+            metadata: {
+              txId: c.id_transaksi,
+              reason,
+            },
+          });
+        });
+
+        cancelledTxRows.forEach((t) => {
+          if (handledTxIds.has(t.id_transaksi)) return;
+          const shortId = formatTransactionId(t.id_transaksi, t.created_at);
+          const reason = t.catatan_pemeriksaan || "Dibatalkan oleh capster/pelanggan";
+          txCancelledItems.push({
+            id: `tx-cancel-${t.id_transaksi}`,
+            type: "tx_cancelled",
+            title: "Pembatalan Transaksi",
+            message: `Transaksi ${shortId} dibatalkan.`,
+            detail: `Catatan: ${reason}`,
+            timeAgo: formatWaktuRelatif(t.created_at),
+            timestamp: t.created_at.toISOString(),
+            link: "/owner/audit-activities",
+            metadata: {
+              txId: t.id_transaksi,
+              reason,
+            },
+          });
+        });
+
+        // 4. Capster Check-in
+        const checkinRows = await db
+          .select({
+            id_shift: shiftCapster.id_shift,
+            id_capster: shiftCapster.id_capster,
+            waktu_mulai: shiftCapster.waktu_mulai,
+            tanggal: shiftCapster.tanggal,
+            created_at: shiftCapster.created_at,
+            capsterName: users.nama_lengkap,
+            noPegawai: capster.no_pegawai,
+          })
+          .from(shiftCapster)
+          .leftJoin(capster, eq(shiftCapster.id_capster, capster.id_capster))
+          .leftJoin(users, eq(capster.id_user, users.id_user))
+          .orderBy(desc(shiftCapster.created_at))
+          .limit(10)
+          .catch(() => []);
+
+        const capsterCheckinItems: OwnerNotificationItem[] = checkinRows.map((s) => {
+          const capsterName = s.capsterName || "Capster";
+          const dt = s.created_at || s.tanggal || new Date();
+          return {
+            id: `capster-checkin-${s.id_shift}`,
+            type: "capster_checkin",
+            title: "Capster Check-In",
+            message: `${capsterName} (${s.noPegawai || "Staff"}) telah check-in bertugas.`,
+            detail: `Mulai bertugas pukul ${s.waktu_mulai || "09:00 WIB"}`,
+            timeAgo: formatWaktuRelatif(dt),
+            timestamp: dt.toISOString(),
+            link: "/owner/capsters",
+            metadata: {
+              capsterName,
+            },
+          };
+        });
+
+        // 5. Capster Mengakhiri Shift
+        const shiftEndRows = await db
+          .select({
+            id_shift: shiftCapster.id_shift,
+            id_capster: shiftCapster.id_capster,
+            waktu_mulai: shiftCapster.waktu_mulai,
+            waktu_selesai: shiftCapster.waktu_selesai,
+            total_transaksi: shiftCapster.total_transaksi,
+            total_pendapatan: shiftCapster.total_pendapatan,
+            updated_at: shiftCapster.updated_at,
+            tanggal: shiftCapster.tanggal,
+            capsterName: users.nama_lengkap,
+            noPegawai: capster.no_pegawai,
+          })
+          .from(shiftCapster)
+          .leftJoin(capster, eq(shiftCapster.id_capster, capster.id_capster))
+          .leftJoin(users, eq(capster.id_user, users.id_user))
+          .where(eq(shiftCapster.status, "completed"))
+          .orderBy(desc(shiftCapster.updated_at))
+          .limit(10)
+          .catch(() => []);
+
+        const capsterShiftEndItems: OwnerNotificationItem[] = shiftEndRows.map((s) => {
+          const capsterName = s.capsterName || "Capster";
+          const dt = s.updated_at || s.tanggal || new Date();
+          const nominal = Number(s.total_pendapatan || 0);
+          return {
+            id: `capster-shiftend-${s.id_shift}`,
+            type: "capster_shift_end",
+            title: "Capster Akhiri Shift",
+            message: `${capsterName} telah mengakhiri shift bertugas.`,
+            detail: `Selesai ${s.waktu_selesai || "-"} • ${s.total_transaksi} transaksi (${formatRupiah(nominal)})`,
+            timeAgo: formatWaktuRelatif(dt),
+            timestamp: dt.toISOString(),
+            link: "/owner/gaji",
+            amount: nominal,
+            metadata: {
+              capsterName,
+            },
+          };
+        });
+
+        // Gabungkan semua notifikasi dan urutkan berdasarkan timestamp terbaru
+        const allNotifications = [
+          ...txSuccessItems,
+          ...txCancelledItems,
+          ...capsterCheckinItems,
+          ...capsterShiftEndItems,
+        ];
+
+        allNotifications.sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        );
+
+        return {
+          notifications: allNotifications.slice(0, maxLimit),
+          totalCount: allNotifications.length,
+        };
+      } catch (err) {
+        console.error("Gagal mengambil notifikasi owner:", err);
+        return {
+          notifications: [],
+          totalCount: 0,
+        };
+      }
+    },
+  );
 

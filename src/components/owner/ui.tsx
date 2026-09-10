@@ -8,7 +8,6 @@ import {
   Settings,
   HelpCircle,
   LogOut,
-  Search,
   Bell,
   Calendar,
   ChevronDown,
@@ -24,6 +23,9 @@ import {
   ArrowRight,
   RefreshCw,
   Activity,
+  Check,
+  UserCheck,
+  LogIn,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -45,6 +47,9 @@ import {
   type OwnerRecentTransaction,
   type OwnerCapsterPerformance,
   type OwnerRecentCancellation,
+  type OwnerNotificationItem,
+  type OwnerNotificationType,
+  getOwnerNotifications,
 } from "@/lib/owner";
 import { ownerActions, useOwner } from "@/lib/owner-store";
 
@@ -149,6 +154,375 @@ export function OwnerSidebar({ activePath }: { activePath: string }) {
 }
 
 // ============================================================================
+// 1.5. NOTIFICATION BELL & POPOVER (OWNER)
+// ============================================================================
+export function OwnerNotificationBell({
+  variant = "dark",
+  isMobile = false,
+}: {
+  variant?: "dark" | "light";
+  isMobile?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<OwnerNotificationItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "transaksi" | "pembatalan" | "shift">("all");
+  const [readIds, setReadIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = localStorage.getItem("barberin_owner_read_notifs");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const navigate = useNavigate();
+  const isLight = variant === "light";
+
+  const fetchNotifs = async () => {
+    try {
+      setLoading(true);
+      const res = await getOwnerNotifications({ data: { limit: 30 } });
+      if (res?.notifications) {
+        setNotifications(res.notifications);
+      }
+    } catch (e) {
+      console.error("Gagal memuat notifikasi owner:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifs();
+    const interval = setInterval(() => {
+      fetchNotifs();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const saveReadIds = (newSet: Set<string>) => {
+    setReadIds(newSet);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          "barberin_owner_read_notifs",
+          JSON.stringify(Array.from(newSet)),
+        );
+      } catch {}
+    }
+  };
+
+  const handleMarkAllRead = () => {
+    const allIds = new Set(readIds);
+    notifications.forEach((n) => allIds.add(n.id));
+    saveReadIds(allIds);
+  };
+
+  const handleItemClick = (item: OwnerNotificationItem) => {
+    const updated = new Set(readIds);
+    updated.add(item.id);
+    saveReadIds(updated);
+    setIsOpen(false);
+    navigate({ to: item.link as any });
+  };
+
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+
+  const filteredNotifs = notifications.filter((item) => {
+    if (activeTab === "all") return true;
+    if (activeTab === "transaksi") return item.type === "tx_success";
+    if (activeTab === "pembatalan") return item.type === "tx_cancelled";
+    if (activeTab === "shift")
+      return item.type === "capster_checkin" || item.type === "capster_shift_end";
+    return true;
+  });
+
+  const countTx = notifications.filter((n) => n.type === "tx_success").length;
+  const countCancel = notifications.filter((n) => n.type === "tx_cancelled").length;
+  const countShift = notifications.filter(
+    (n) => n.type === "capster_checkin" || n.type === "capster_shift_end",
+  ).length;
+
+  return (
+    <div className="relative">
+      {/* Bell Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        title="Notifikasi Aktivitas"
+        className={
+          isMobile
+            ? `p-1.5 rounded-lg transition-colors relative ${
+                isOpen
+                  ? isLight
+                    ? "bg-slate-200 text-blue-600"
+                    : "bg-slate-800 text-blue-400"
+                  : isLight
+                    ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800"
+              }`
+            : `p-2 rounded-xl transition-colors relative ${
+                isOpen
+                  ? isLight
+                    ? "bg-slate-200 text-blue-600"
+                    : "bg-slate-800 text-blue-400"
+                  : isLight
+                    ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`
+        }
+      >
+        <Bell className={isMobile ? "h-5 w-5" : "h-5 w-5"} />
+        {unreadCount > 0 ? (
+          <>
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-[#0A1424]">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+            <span className="absolute -top-1 -right-1 w-[18px] h-[18px] rounded-full bg-rose-500 animate-ping opacity-40 pointer-events-none" />
+          </>
+        ) : (
+          <span
+            className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-slate-500/40 ring-2 ${
+              isLight ? "ring-white" : "ring-[#0A1424]"
+            }`}
+          />
+        )}
+      </button>
+
+      {/* Popover / Panel Notifikasi */}
+      {isOpen && (
+        <>
+          {/* Backdrop for closing when clicking outside */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+            onClick={() => setIsOpen(false)}
+          />
+
+          <div
+            className={`absolute right-0 top-[calc(100%+8px)] z-50 rounded-2xl shadow-2xl transition-all animate-in fade-in zoom-in-95 duration-150 ${
+              isMobile
+                ? "w-[330px] sm:w-[380px] -right-12 sm:right-0"
+                : "w-[420px]"
+            } ${
+              isLight
+                ? "bg-white/95 border border-slate-200 backdrop-blur-xl text-slate-800 shadow-slate-300/50"
+                : "bg-[#0D192B]/95 border border-slate-700/80 backdrop-blur-xl text-slate-100 shadow-black/80"
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-700/40">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm tracking-wide">Notifikasi</h3>
+                {unreadCount > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    {unreadCount} baru
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-400">Semua sudah dibaca</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium flex items-center gap-1 hover:underline"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Tandai dibaca
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-700/40 overflow-x-auto text-xs scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveTab("all")}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  activeTab === "all"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+              >
+                Semua ({notifications.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("transaksi")}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === "transaksi"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Transaksi ({countTx})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("pembatalan")}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === "pembatalan"
+                    ? "bg-rose-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                Pembatalan ({countCancel})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("shift")}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === "shift"
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Shift Capster ({countShift})
+              </button>
+            </div>
+
+            {/* List Body */}
+            <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-800/40 p-2 space-y-1">
+              {loading && notifications.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <RefreshCw className="mx-auto h-5 w-5 animate-spin text-blue-500 mb-2" />
+                  <p className="text-xs">Memuat notifikasi...</p>
+                </div>
+              ) : filteredNotifs.length === 0 ? (
+                <div className="py-8 text-center text-slate-400">
+                  <CheckCircle2 className="mx-auto h-7 w-7 text-slate-500 mb-2 opacity-60" />
+                  <p className="text-xs font-semibold text-slate-300">Belum Ada Notifikasi</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Aktivitas transaksi dan shift capster akan muncul di sini.
+                  </p>
+                </div>
+              ) : (
+                filteredNotifs.map((item) => {
+                  const isRead = readIds.has(item.id);
+
+                  let iconBadge;
+                  if (item.type === "tx_success") {
+                    iconBadge = (
+                      <div className="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                        <CheckCircle2 className="h-4 w-4" />
+                      </div>
+                    );
+                  } else if (item.type === "tx_cancelled") {
+                    iconBadge = (
+                      <div className="h-8 w-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                        <XCircle className="h-4 w-4" />
+                      </div>
+                    );
+                  } else if (item.type === "capster_checkin") {
+                    iconBadge = (
+                      <div className="h-8 w-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                        <UserCheck className="h-4 w-4" />
+                      </div>
+                    );
+                  } else {
+                    iconBadge = (
+                      <div className="h-8 w-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                        <LogOut className="h-4 w-4" />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleItemClick(item)}
+                      className={`group p-2.5 rounded-xl cursor-pointer transition-all flex items-start gap-3 relative ${
+                        isRead
+                          ? isLight
+                            ? "hover:bg-slate-100 opacity-80"
+                            : "hover:bg-slate-800/50 opacity-75"
+                          : isLight
+                            ? "bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200/60"
+                            : "bg-blue-950/25 hover:bg-blue-900/35 border border-blue-500/15"
+                      }`}
+                    >
+                      {iconBadge}
+
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={`text-xs font-semibold truncate ${
+                              item.type === "tx_success"
+                                ? "text-emerald-400"
+                                : item.type === "tx_cancelled"
+                                  ? "text-rose-400"
+                                  : item.type === "capster_checkin"
+                                    ? "text-blue-400"
+                                    : "text-amber-400"
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0">
+                            {item.timeAgo}
+                          </span>
+                        </div>
+
+                        <p
+                          className={`text-xs font-medium leading-snug mt-0.5 ${
+                            isLight ? "text-slate-900" : "text-slate-200"
+                          }`}
+                        >
+                          {item.message}
+                        </p>
+
+                        {item.detail && (
+                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            {item.detail}
+                          </p>
+                        )}
+                      </div>
+
+                      {!isRead && (
+                        <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-1 shadow-sm" />
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-2.5 border-t border-slate-700/40 text-center bg-slate-900/40 rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate({ to: "/owner/audit-activities" });
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1.5 transition-colors"
+              >
+                <span>Lihat Riwayat Aktivitas Lengkap</span>
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // 2. TOP HEADER (DESKTOP)
 // ============================================================================
 export function OwnerHeader({
@@ -160,37 +534,17 @@ export function OwnerHeader({
   isRefreshing?: boolean;
   variant?: "dark" | "light";
 }) {
-  const { user, searchKeyword } = useOwner();
+  const { user } = useOwner();
   const isLight = variant === "light";
 
   return (
     <header
-      className={`hidden lg:flex items-center justify-between px-8 py-3.5 sticky top-0 z-30 transition-colors ${
+      className={`hidden lg:flex items-center justify-end px-8 py-3.5 sticky top-0 z-30 transition-colors ${
         isLight
           ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs"
           : "bg-[#0A1424] border-b border-slate-800/80"
       }`}
     >
-      {/* Search Input */}
-      <div className="relative w-96">
-        <Search
-          className={`absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 ${
-            isLight ? "text-slate-400" : "text-slate-400"
-          }`}
-        />
-        <input
-          type="text"
-          value={searchKeyword}
-          onChange={(e) => ownerActions.setSearchKeyword(e.target.value)}
-          placeholder="Cari layanan, kategori, atau deskripsi..."
-          className={`w-full pl-10 pr-4 py-2 text-sm rounded-xl focus:outline-none focus:border-blue-500 transition-colors ${
-            isLight
-              ? "bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200 focus:bg-white"
-              : "bg-[#121F33] text-white placeholder-slate-400 border border-slate-700/60"
-          }`}
-        />
-      </div>
-
       {/* Right Controls */}
       <div className="flex items-center gap-4">
         {onRefresh && (
@@ -211,23 +565,7 @@ export function OwnerHeader({
         )}
 
         {/* Notification Bell */}
-        <div className="relative">
-          <button
-            type="button"
-            className={`p-2 rounded-xl transition-colors relative ${
-              isLight
-                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-            }`}
-          >
-            <Bell className="h-5 w-5" />
-            <span
-              className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ${
-                isLight ? "ring-white" : "ring-[#0A1424]"
-              }`}
-            />
-          </button>
-        </div>
+        <OwnerNotificationBell variant={variant} />
 
         {/* Owner Profile */}
         <div
@@ -346,23 +684,8 @@ export function OwnerMobileHeader({
             </button>
           )}
 
-          <div className="relative">
-            <button
-              type="button"
-              className={`p-1.5 rounded-lg transition-colors ${
-                isLight
-                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  : "text-slate-300 hover:text-white hover:bg-slate-800"
-              }`}
-            >
-              <Bell className="h-5 w-5" />
-              <span
-                className={`absolute top-1 right-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ${
-                  isLight ? "ring-white" : "ring-[#0A1424]"
-                }`}
-              />
-            </button>
-          </div>
+          {/* Notification Bell */}
+          <OwnerNotificationBell variant={variant} isMobile />
 
           <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-blue-500/20">
             {user.nama_lengkap.charAt(0) || "O"}

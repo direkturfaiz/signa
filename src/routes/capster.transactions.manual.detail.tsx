@@ -38,6 +38,7 @@ function ManualTransactionDetailPage() {
   const { manualDraft } = useCapster();
 
   const [name, setName] = useState(manualDraft.customerName);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [resolvedServices, setResolvedServices] = useState<CapsterService[]>(
     () => manualDraft.selectedServices ?? [],
   );
@@ -122,6 +123,11 @@ function ManualTransactionDetailPage() {
   const total = subtotal - discount;
 
   const handleNext = () => {
+    if (!name.trim()) {
+      setNameError("Nama pelanggan wajib diisi");
+      return;
+    }
+
     capsterActions.setManualCustomerData({
       name: name.trim(),
       phone: "",
@@ -199,12 +205,16 @@ function ManualTransactionDetailPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label
-              htmlFor="customer-name"
-              className="block text-[12px] font-medium text-muted-foreground"
-            >
-              Nama Pelanggan
-            </label>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="customer-name"
+                className="flex items-center gap-1 text-[12px] font-medium text-foreground"
+              >
+                <span>Nama Pelanggan</span>
+                <span className="text-danger font-bold">*</span>
+              </label>
+              <span className="text-[11px] font-medium text-danger/90">Wajib diisi</span>
+            </div>
 
             <div className="relative flex items-center">
               <span className="absolute left-3 text-muted-foreground">
@@ -214,12 +224,26 @@ function ManualTransactionDetailPage() {
               <input
                 id="customer-name"
                 type="text"
+                required
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Contoh: Ricky Pratama (Opsional)"
-                className="min-h-[44px] w-full rounded-[10px] border border-white/16 bg-white/8 pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary-soft"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (nameError) setNameError(null);
+                }}
+                placeholder="Contoh: Ricky Pratama"
+                className={`min-h-[44px] w-full rounded-[10px] border ${
+                  nameError
+                    ? "border-danger focus:ring-danger"
+                    : "border-white/16 focus:ring-primary-soft"
+                } bg-white/8 pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1`}
               />
             </div>
+
+            {nameError && (
+              <p className="text-[11px] font-medium text-danger animate-in fade-in duration-150">
+                {nameError}
+              </p>
+            )}
           </div>
         </GlassCard>
 
@@ -309,7 +333,7 @@ function ManualTransactionDetailPage() {
       <BottomActionBar>
         <PrimaryButton
           onClick={handleNext}
-          disabled={loading || selectedServices.length === 0}
+          disabled={loading || selectedServices.length === 0 || !name.trim()}
         >
           LANJUT KE PEMBAYARAN
           <ArrowRight className="h-4 w-4" strokeWidth={2} />
