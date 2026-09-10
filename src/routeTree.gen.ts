@@ -37,6 +37,7 @@ import { Route as OwnerCapstersRouteImport } from './routes/owner.capsters'
 import { Route as OwnerDashboardRouteImport } from './routes/owner.dashboard'
 import { Route as OwnerGajiRouteImport } from './routes/owner.gaji'
 import { Route as OwnerHelpRouteImport } from './routes/owner.help'
+import { Route as OwnerKomisiRouteImport } from './routes/owner.komisi'
 import { Route as OwnerLoginRouteImport } from './routes/owner.login'
 import { Route as OwnerServicesRouteImport } from './routes/owner.services'
 import { Route as OwnerSettingsRouteImport } from './routes/owner.settings'
@@ -195,6 +196,11 @@ const OwnerHelpRoute = OwnerHelpRouteImport.update({
   path: '/owner/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerKomisiRoute = OwnerKomisiRouteImport.update({
+  id: '/owner/komisi',
+  path: '/owner/komisi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OwnerLoginRoute = OwnerLoginRouteImport.update({
   id: '/owner/login',
   path: '/owner/login',
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/owner/dashboard': typeof OwnerDashboardRoute
   '/owner/gaji': typeof OwnerGajiRoute
   '/owner/help': typeof OwnerHelpRoute
+  '/owner/komisi': typeof OwnerKomisiRoute
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
   '/owner/settings': typeof OwnerSettingsRoute
@@ -355,6 +362,7 @@ export interface FileRoutesByTo {
   '/owner/dashboard': typeof OwnerDashboardRoute
   '/owner/gaji': typeof OwnerGajiRoute
   '/owner/help': typeof OwnerHelpRoute
+  '/owner/komisi': typeof OwnerKomisiRoute
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
   '/owner/settings': typeof OwnerSettingsRoute
@@ -401,6 +409,7 @@ export interface FileRoutesById {
   '/owner/dashboard': typeof OwnerDashboardRoute
   '/owner/gaji': typeof OwnerGajiRoute
   '/owner/help': typeof OwnerHelpRoute
+  '/owner/komisi': typeof OwnerKomisiRoute
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
   '/owner/settings': typeof OwnerSettingsRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/owner/dashboard'
     | '/owner/gaji'
     | '/owner/help'
+    | '/owner/komisi'
     | '/owner/login'
     | '/owner/services'
     | '/owner/settings'
@@ -493,6 +503,7 @@ export interface FileRouteTypes {
     | '/owner/dashboard'
     | '/owner/gaji'
     | '/owner/help'
+    | '/owner/komisi'
     | '/owner/login'
     | '/owner/services'
     | '/owner/settings'
@@ -538,6 +549,7 @@ export interface FileRouteTypes {
     | '/owner/dashboard'
     | '/owner/gaji'
     | '/owner/help'
+    | '/owner/komisi'
     | '/owner/login'
     | '/owner/services'
     | '/owner/settings'
@@ -584,6 +596,7 @@ export interface RootRouteChildren {
   OwnerDashboardRoute: typeof OwnerDashboardRoute
   OwnerGajiRoute: typeof OwnerGajiRoute
   OwnerHelpRoute: typeof OwnerHelpRoute
+  OwnerKomisiRoute: typeof OwnerKomisiRoute
   OwnerLoginRoute: typeof OwnerLoginRoute
   OwnerServicesRoute: typeof OwnerServicesRoute
   OwnerSettingsRoute: typeof OwnerSettingsRoute
@@ -786,6 +799,13 @@ declare module '@tanstack/react-router' {
       path: '/owner/help'
       fullPath: '/owner/help'
       preLoaderRoute: typeof OwnerHelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/owner/komisi': {
+      id: '/owner/komisi'
+      path: '/owner/komisi'
+      fullPath: '/owner/komisi'
+      preLoaderRoute: typeof OwnerKomisiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/owner/login': {
@@ -1003,6 +1023,7 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerDashboardRoute: OwnerDashboardRoute,
   OwnerGajiRoute: OwnerGajiRoute,
   OwnerHelpRoute: OwnerHelpRoute,
+  OwnerKomisiRoute: OwnerKomisiRoute,
   OwnerLoginRoute: OwnerLoginRoute,
   OwnerServicesRoute: OwnerServicesRoute,
   OwnerSettingsRoute: OwnerSettingsRoute,

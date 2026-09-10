@@ -370,72 +370,74 @@ function OwnerAuditFinancePage() {
             </div>
           </div>
 
-          {/* Section: Metode Pembayaran (Bento Cards) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">Metode Pembayaran</h3>
-              <span className="text-xs text-slate-400">Rekap transaksi lunas</span>
+          {/* Section: Metode Pembayaran (Di Dalam Kotakan Card Sesuai Gambar 2) */}
+          <div className="bg-[#0F1D33] border border-slate-800/80 rounded-2xl p-4 md:p-5 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-base md:text-lg font-bold text-white tracking-tight">
+                Metode Pembayaran
+              </h3>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 md:gap-4">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 md:gap-4">
               {/* Tunai */}
-              <div className="bg-[#0F1D33] border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="bg-[#0A1424] border border-slate-700/60 rounded-xl p-3.5 md:p-4 flex items-center gap-3.5 hover:border-slate-600 transition-colors">
+                <div className="h-11 w-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
                   <Banknote className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-slate-400 font-medium">Tunai</div>
-                  <div className="text-xs text-slate-300 font-semibold">
+                  <div className="text-xs text-blue-400 font-semibold">Tunai</div>
+                  <div className="text-xs text-slate-200 font-bold mt-0.5">
                     {data?.paymentMethods.tunai.count || 0} transaksi
                   </div>
-                  <div className="text-sm font-bold text-white truncate mt-0.5">
+                  <div className="text-sm md:text-base font-extrabold text-white truncate mt-0.5">
                     {formatRupiah(data?.paymentMethods.tunai.total || 0)}
                   </div>
                 </div>
               </div>
 
               {/* QRIS */}
-              <div className="bg-[#0F1D33] border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
+              <div className="bg-[#0A1424] border border-slate-700/60 rounded-xl p-3.5 md:p-4 flex items-center gap-3.5 hover:border-slate-600 transition-colors">
+                <div className="h-11 w-11 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
                   <QrCode className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-slate-400 font-medium">QRIS</div>
-                  <div className="text-xs text-slate-300 font-semibold">
+                  <div className="text-xs text-blue-400 font-semibold">QRIS</div>
+                  <div className="text-xs text-slate-200 font-bold mt-0.5">
                     {data?.paymentMethods.qris.count || 0} transaksi
                   </div>
-                  <div className="text-sm font-bold text-white truncate mt-0.5">
+                  <div className="text-sm md:text-base font-extrabold text-white truncate mt-0.5">
                     {formatRupiah(data?.paymentMethods.qris.total || 0)}
                   </div>
                 </div>
               </div>
 
               {/* Transfer */}
-              <div className="bg-[#0F1D33] border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+              <div className="bg-[#0A1424] border border-slate-700/60 rounded-xl p-3.5 md:p-4 flex items-center gap-3.5 hover:border-slate-600 transition-colors">
+                <div className="h-11 w-11 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-slate-400 font-medium">Transfer Antar Bank</div>
-                  <div className="text-xs text-slate-300 font-semibold">
+                  <div className="text-xs text-blue-400 font-semibold truncate">Transfer Antar Bank</div>
+                  <div className="text-xs text-slate-200 font-bold mt-0.5">
                     {data?.paymentMethods.transfer.count || 0} transaksi
                   </div>
-                  <div className="text-sm font-bold text-white truncate mt-0.5">
+                  <div className="text-sm md:text-base font-extrabold text-white truncate mt-0.5">
                     {formatRupiah(data?.paymentMethods.transfer.total || 0)}
                   </div>
                 </div>
               </div>
 
               {/* Total Non-Tunai */}
-              <div className="bg-[#0F1D33] border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center shrink-0">
+              <div className="bg-[#0A1424] border border-slate-700/60 rounded-xl p-3.5 md:p-4 flex items-center gap-3.5 hover:border-slate-600 transition-colors">
+                <div className="h-11 w-11 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-slate-400 font-medium">Total Non-Tunai</div>
-                  <div className="text-xs text-slate-300 font-semibold">
+                  <div className="text-xs text-blue-400 font-semibold">Total Non-Tunai</div>
+                  <div className="text-xs text-slate-200 font-bold mt-0.5">
                     {data?.paymentMethods.totalNonTunai.count || 0} transaksi
                   </div>
-                  <div className="text-sm font-bold text-white truncate mt-0.5">
+                  <div className="text-sm md:text-base font-extrabold text-white truncate mt-0.5">
                     {formatRupiah(data?.paymentMethods.totalNonTunai.total || 0)}
                   </div>
                 </div>

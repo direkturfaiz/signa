@@ -26,6 +26,7 @@ import {
   Check,
   UserCheck,
   LogIn,
+  Search,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -529,22 +530,48 @@ export function OwnerHeader({
   onRefresh,
   isRefreshing,
   variant = "dark",
+  searchPlaceholder,
+  searchValue,
+  onSearchChange,
 }: {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   variant?: "dark" | "light";
+  searchPlaceholder?: string;
+  searchValue?: string;
+  onSearchChange?: (val: string) => void;
 }) {
   const { user } = useOwner();
   const isLight = variant === "light";
 
   return (
     <header
-      className={`hidden lg:flex items-center justify-end px-8 py-3.5 sticky top-0 z-30 transition-colors ${
+      className={`hidden lg:flex items-center ${
+        searchPlaceholder ? "justify-between" : "justify-end"
+      } px-8 py-3.5 sticky top-0 z-30 transition-colors ${
         isLight
           ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs"
           : "bg-[#0A1424] border-b border-slate-800/80"
       }`}
     >
+      {/* Optional Left Search Bar (Wireframe-compliant) */}
+      {searchPlaceholder ? (
+        <div className="relative max-w-sm w-full">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchValue || ""}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            placeholder={searchPlaceholder}
+            className={`w-full pl-9 pr-3.5 py-2 text-xs rounded-xl transition-all border outline-hidden ${
+              isLight
+                ? "bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                : "bg-slate-900/60 border-slate-700/80 text-white placeholder:text-slate-500 focus:border-blue-500"
+            }`}
+          />
+        </div>
+      ) : null}
+
       {/* Right Controls */}
       <div className="flex items-center gap-4">
         {onRefresh && (
