@@ -181,11 +181,19 @@ function getPeriodDates(
     const [y, m] = jakartaTodayStr.split("-").map(Number);
     const yVal = y ?? now.getFullYear();
     const mVal = m ?? (now.getMonth() + 1);
-    startDate = new Date(Date.UTC(yVal, mVal - 1, 1, 0, 0, 0));
-    endDate = new Date(Date.UTC(yVal, mVal, 0, 23, 59, 59, 999));
+    const daysInMonth = new Date(yVal, mVal, 0).getDate();
+    const mStr = String(mVal).padStart(2, "0");
+    const lastDayStr = String(daysInMonth).padStart(2, "0");
+    startDate = new Date(`${yVal}-${mStr}-01T00:00:00+07:00`);
+    endDate = new Date(`${yVal}-${mStr}-${lastDayStr}T23:59:59.999+07:00`);
 
-    prevStartDate = new Date(Date.UTC(yVal, mVal - 2, 1, 0, 0, 0));
-    prevEndDate = new Date(Date.UTC(yVal, mVal - 1, 0, 23, 59, 59, 999));
+    const prevMonthVal = mVal === 1 ? 12 : mVal - 1;
+    const prevYearVal = mVal === 1 ? yVal - 1 : yVal;
+    const prevDaysInMonth = new Date(prevYearVal, prevMonthVal, 0).getDate();
+    const prevMStr = String(prevMonthVal).padStart(2, "0");
+    const prevLastDayStr = String(prevDaysInMonth).padStart(2, "0");
+    prevStartDate = new Date(`${prevYearVal}-${prevMStr}-01T00:00:00+07:00`);
+    prevEndDate = new Date(`${prevYearVal}-${prevMStr}-${prevLastDayStr}T23:59:59.999+07:00`);
     deltaLabel = "dari bulan sebelumnya";
   } else {
     // Custom

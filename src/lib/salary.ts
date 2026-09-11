@@ -108,15 +108,18 @@ function getSalaryDateRange(
     const [y, m] = jakartaTodayStr.split("-").map(Number);
     const yVal = y ?? now.getFullYear();
     const mVal = m ?? (now.getMonth() + 1);
-    startDate = new Date(Date.UTC(yVal, mVal - 1, 1, 0, 0, 0));
-    endDate = new Date(Date.UTC(yVal, mVal, 0, 23, 59, 59, 999));
+    const daysInMonth = new Date(yVal, mVal, 0).getDate();
+    const mStr = String(mVal).padStart(2, "0");
+    const lastDayStr = String(daysInMonth).padStart(2, "0");
+    startDate = new Date(`${yVal}-${mStr}-01T00:00:00+07:00`);
+    endDate = new Date(`${yVal}-${mStr}-${lastDayStr}T23:59:59.999+07:00`);
     const monthName = startDate.toLocaleDateString("id-ID", {
       month: "long",
       year: "numeric",
       timeZone: "Asia/Jakarta",
     });
     periodLabel = `Bulan Ini (${monthName})`;
-    dateRangeText = `1 - ${endDate.getDate()} ${monthName}`;
+    dateRangeText = `1 - ${daysInMonth} ${monthName}`;
   } else if (period === "custom" && customStart && customEnd) {
     startDate = new Date(`${customStart}T00:00:00+07:00`);
     endDate = new Date(`${customEnd}T23:59:59.999+07:00`);
