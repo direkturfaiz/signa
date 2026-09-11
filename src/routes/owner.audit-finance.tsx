@@ -31,7 +31,7 @@ import {
   OwnerMobileHeader,
   OwnerBottomNav,
 } from "@/components/owner/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatNumberWithDots, parseNumberFromDots } from "@/lib/format";
 import {
   getOwnerAuditFinance,
   saveOwnerCashAudit,
@@ -88,7 +88,7 @@ function OwnerAuditFinancePage() {
       });
       setData(res);
       if (res.cashOnHand) {
-        setInputPhysicalCash(String(res.cashOnHand.physicalCash));
+        setInputPhysicalCash(formatNumberWithDots(res.cashOnHand.physicalCash));
       }
     } catch (err: any) {
       console.error("Gagal memuat audit keuangan:", err);
@@ -112,7 +112,7 @@ function OwnerAuditFinancePage() {
     if (!data) return;
     try {
       setSavingCash(true);
-      const physical = Number(inputPhysicalCash) || 0;
+      const physical = parseNumberFromDots(inputPhysicalCash);
       await saveOwnerCashAudit({
         data: {
           periode: data.periodLabel,
@@ -657,7 +657,14 @@ function OwnerAuditFinancePage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsCashModalOpen(true)}
+                  onClick={() => {
+                    setInputPhysicalCash(
+                      data?.cashOnHand?.physicalCash
+                        ? formatNumberWithDots(data.cashOnHand.physicalCash)
+                        : ""
+                    );
+                    setIsCashModalOpen(true);
+                  }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-semibold text-white shadow-xs"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -889,14 +896,20 @@ function OwnerAuditFinancePage() {
                 <label className="block text-slate-400 font-medium mb-1">
                   Nominal Uang Fisik Dihitung (Rp)
                 </label>
-                <input
-                  type="number"
-                  required
-                  value={inputPhysicalCash}
-                  onChange={(e) => setInputPhysicalCash(e.target.value)}
-                  placeholder="Contoh: 500000"
-                  className="w-full px-3.5 py-2.5 bg-[#0A1424] border border-slate-700 rounded-xl text-sm font-semibold text-white focus:outline-none focus:border-blue-500"
-                />
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">
+                    Rp
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    value={inputPhysicalCash}
+                    onChange={(e) => setInputPhysicalCash(formatNumberWithDots(e.target.value))}
+                    placeholder="Contoh: 500.000"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-[#0A1424] border border-slate-700 rounded-xl text-sm font-semibold text-white focus:outline-none focus:border-blue-500 tracking-wide font-mono"
+                  />
+                </div>
               </div>
 
               <div>

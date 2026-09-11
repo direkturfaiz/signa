@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   alasanPembatalan,
@@ -179,8 +179,8 @@ function getPeriodDates(
     deltaLabel = "dari 30 hari sebelumnya";
   } else if (period === "month") {
     const [y, m] = jakartaTodayStr.split("-").map(Number);
-    const yVal = y ?? 2026;
-    const mVal = m ?? 1;
+    const yVal = y ?? now.getFullYear();
+    const mVal = m ?? (now.getMonth() + 1);
     startDate = new Date(Date.UTC(yVal, mVal - 1, 1, 0, 0, 0));
     endDate = new Date(Date.UTC(yVal, mVal, 0, 23, 59, 59, 999));
 
@@ -450,12 +450,12 @@ export const getOwnerDashboardMetrics = createServerFn({
     });
 
     // 4. Metode Pembayaran
-    // Query metode pembayaran dari transaksi periode sekarang yang paid
-    const currentTxIds = currentTxs.map((t) => t.id_transaksi);
+    // Query metode pembayaran HANYA dari transaksi periode sekarang yang BERHASIL (status paid)
+    const paidTxIds = validCurrentPaidTxs.map((t) => t.id_transaksi);
     let paymentRows: { metode_pembayaran: string; count: number; total: number }[] =
       [];
 
-    if (currentTxIds.length > 0) {
+    if (paidTxIds.length > 0) {
       const payments = await db
         .select({
           metode_pembayaran: pembayaran.metode_pembayaran,
@@ -463,7 +463,13 @@ export const getOwnerDashboardMetrics = createServerFn({
           jumlah_bayar: pembayaran.jumlah_bayar,
         })
         .from(pembayaran)
-        .where(inArray(pembayaran.id_transaksi, currentTxIds));
+        .where(
+          and(
+            inArray(pembayaran.id_transaksi, paidTxIds),
+            ne(pembayaran.status_pembayaran, "failed"),
+            ne(pembayaran.status_pembayaran, "refunded"),
+          ),
+        );
 
       const methodCounts = {
         tunai: 0,
@@ -684,10 +690,12 @@ export const getOwnerDashboardMetrics = createServerFn({
         const dateStr = tx.created_at.toLocaleDateString("id-ID", {
           day: "numeric",
           month: "short",
+          timeZone: "Asia/Jakarta",
         });
         const timeStr = tx.created_at.toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: "Asia/Jakarta",
         });
 
         return {
@@ -827,10 +835,12 @@ export const getOwnerDashboardMetrics = createServerFn({
         const dateStr = c.waktu_pembatalan.toLocaleDateString("id-ID", {
           day: "numeric",
           month: "short",
+          timeZone: "Asia/Jakarta",
         });
         const timeStr = c.waktu_pembatalan.toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: "Asia/Jakarta",
         });
 
         return {
@@ -856,13 +866,47 @@ export const getOwnerDashboardMetrics = createServerFn({
       custom: "Kustom",
     };
 
-    const dateOptions: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    };
-    const dateRangeText = now.toLocaleDateString("id-ID", dateOptions);
+    let dateRangeText = "";
+    if (period === "today") {
+      dateRangeText = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      });
+    } else if (period === "7d" || period === "30d" || period === "custom") {
+      dateRangeText = `${startDate.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      })} – ${endDate.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      })}`;
+    } else if (period === "month") {
+      dateRangeText = `${startDate.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        timeZone: "Asia/Jakarta",
+      })} – ${endDate.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      })}`;
+    } else {
+      dateRangeText = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Asia/Jakarta",
+      });
+    }
 
     return {
       totalRevenue: currentRevenue,
@@ -1414,15 +1458,26 @@ export const getOwnerAuditActivities = createServerFn({
       custom: "Kustom",
     };
 
-    const dateRangeText = `${startDate.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })} – ${endDate.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })}`;
+    const dateRangeText =
+      period === "today"
+        ? startDate.toLocaleDateString("id-ID", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            timeZone: "Asia/Jakarta",
+          })
+        : `${startDate.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            timeZone: "Asia/Jakarta",
+          })} – ${endDate.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            timeZone: "Asia/Jakarta",
+          })}`;
 
     return {
       periodLabel: periodLabels[period] || "Hari Ini",
@@ -1939,15 +1994,26 @@ export const getOwnerAuditFinance = createServerFn({
       custom: "Kustom",
     };
 
-    const dateRangeText = `${startDate.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })} – ${endDate.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    })}`;
+    const dateRangeText =
+      period === "today"
+        ? startDate.toLocaleDateString("id-ID", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            timeZone: "Asia/Jakarta",
+          })
+        : `${startDate.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            timeZone: "Asia/Jakarta",
+          })} – ${endDate.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            timeZone: "Asia/Jakarta",
+          })}`;
 
     return {
       periodLabel: periodLabels[period] || "Hari Ini",

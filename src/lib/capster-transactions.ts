@@ -14,6 +14,7 @@ import {
   transaksi,
   users,
 } from "@/db/schema";
+import { getWibTimeString } from "@/lib/format";
 
 type CreateManualTransactionInput = {
   customerName: string;
@@ -211,10 +212,12 @@ export const getCapsterTransactions = createServerFn({
           day: "2-digit",
           month: "long",
           year: "numeric",
+          timeZone: "Asia/Jakarta",
         }),
         time: r.created_at.toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: "Asia/Jakarta",
         }),
         customerName: r.customerName,
         customerId: r.id_pelanggan,
@@ -486,7 +489,7 @@ export const createManualTransaction = createServerFn({
 
     if (!activeShift) {
       const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} WIB`;
+      const timeStr = getWibTimeString(now);
       [activeShift] = await db
         .insert(shiftCapster)
         .values({

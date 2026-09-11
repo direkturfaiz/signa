@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Calendar, Coins, Receipt, Scissors, Users } from "lucide-react";
+import { Calendar, Clock, Coins, Receipt, Scissors, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { MobileShell } from "@/components/barberin/ui";
@@ -11,7 +11,7 @@ import {
   ShiftEndModal,
   SummaryCard,
 } from "@/components/capster/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatWibClock, useLiveClock } from "@/lib/format";
 import {
   capsterActions,
   useCapster,
@@ -81,11 +81,7 @@ function CapsterDashboardPage() {
     };
   }, [capsterId, userId]);
 
-  const currentDate = new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    timeZone: "Asia/Jakarta",
-  });
+  const liveClock = useLiveClock(1000);
 
   const handleEndShiftConfirm = async () => {
     if (shiftId) {
@@ -119,9 +115,17 @@ function CapsterDashboardPage() {
               Kamu ke dashboard capster mu.
             </p>
           </div>
-          <div className="glass-2 flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold text-primary-soft">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>{currentDate}</span>
+          <div className="glass-2 flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold text-primary-soft shrink-0">
+            <Clock className="h-3.5 w-3.5 text-primary-soft shrink-0" />
+            <span>
+              {liveClock.toLocaleDateString("id-ID", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "Asia/Jakarta",
+              })} • {formatWibClock(liveClock, { withDate: false })}
+            </span>
           </div>
         </div>
 

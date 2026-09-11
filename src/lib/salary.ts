@@ -74,6 +74,7 @@ function getSalaryDateRange(
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     });
   } else if (period === "7d") {
     endDate = new Date(`${jakartaTodayStr}T23:59:59.999+07:00`);
@@ -82,10 +83,12 @@ function getSalaryDateRange(
     dateRangeText = `${startDate.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
+      timeZone: "Asia/Jakarta",
     })} - ${endDate.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     })}`;
   } else if (period === "30d") {
     endDate = new Date(`${jakartaTodayStr}T23:59:59.999+07:00`);
@@ -94,20 +97,23 @@ function getSalaryDateRange(
     dateRangeText = `${startDate.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
+      timeZone: "Asia/Jakarta",
     })} - ${endDate.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     })}`;
   } else if (period === "month") {
     const [y, m] = jakartaTodayStr.split("-").map(Number);
-    const yVal = y ?? 2026;
-    const mVal = m ?? 9;
+    const yVal = y ?? now.getFullYear();
+    const mVal = m ?? (now.getMonth() + 1);
     startDate = new Date(Date.UTC(yVal, mVal - 1, 1, 0, 0, 0));
     endDate = new Date(Date.UTC(yVal, mVal, 0, 23, 59, 59, 999));
     const monthName = startDate.toLocaleDateString("id-ID", {
       month: "long",
       year: "numeric",
+      timeZone: "Asia/Jakarta",
     });
     periodLabel = `Bulan Ini (${monthName})`;
     dateRangeText = `1 - ${endDate.getDate()} ${monthName}`;
@@ -386,10 +392,12 @@ export const getOwnerCapsterBaseTransactions = createServerFn({
         day: "numeric",
         month: "short",
         year: "numeric",
+        timeZone: "Asia/Jakarta",
       });
       const timeStr = tx.created_at.toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "Asia/Jakarta",
       });
 
       const txNumber =

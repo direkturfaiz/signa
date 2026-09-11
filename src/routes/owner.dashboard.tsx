@@ -9,6 +9,7 @@ import {
   Users,
   XCircle,
   AlertCircle,
+  Clock,
 } from "lucide-react";
 
 import {
@@ -24,7 +25,7 @@ import {
   RecentCancellationsTable,
   TransactionDetailModal,
 } from "@/components/owner/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatWibClock, useLiveClock } from "@/lib/format";
 import {
   getOwnerDashboardMetrics,
   type OwnerDashboardMetrics,
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/owner/dashboard")({
 
 function OwnerDashboardPage() {
   const { activePeriod, searchKeyword } = useOwner();
+  const liveClock = useLiveClock(1000);
   const [metrics, setMetrics] = useState<OwnerDashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -188,8 +190,22 @@ function OwnerDashboardPage() {
                 )}
               </div>
 
-              <div className="text-xs text-slate-400 font-medium hidden md:block">
-                {metrics?.dateRangeText || ""}
+              <div className="text-xs text-slate-400 font-medium hidden md:flex items-center gap-1.5">
+                {activePeriod === "today" ? (
+                  <>
+                    <Clock className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                    <span>
+                      {formatWibClock(liveClock, {
+                        withSeconds: false,
+                        withDay: true,
+                        withDate: true,
+                        withYear: true,
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  <span>{metrics?.dateRangeText || ""}</span>
+                )}
               </div>
             </div>
           </div>

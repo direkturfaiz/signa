@@ -136,6 +136,24 @@ const INITIAL_METRICS: DashboardMetrics = EMPTY_METRICS;
 
 const INITIAL_TRANSACTIONS: CapsterTransaction[] = [];
 
+export function getTodayShiftDate() {
+  const now = new Date();
+  return {
+    date: now.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Jakarta",
+    }),
+    day: now.toLocaleDateString("id-ID", {
+      weekday: "long",
+      timeZone: "Asia/Jakarta",
+    }),
+  };
+}
+
+const todayShift = getTodayShiftDate();
+
 const initialCapsterState: CapsterState = {
   isLoggedIn: false,
   userId: null,
@@ -145,12 +163,8 @@ const initialCapsterState: CapsterState = {
   capsterName: "",
   capsterRole: "",
   shiftInfo: {
-    date: new Date().toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    }),
-    day: new Date().toLocaleDateString("id-ID", { weekday: "long" }),
+    date: todayShift.date,
+    day: todayShift.day,
     startTime: "08:00 WIB",
     endTime: "17:00 WIB",
     isCheckedIn: false,
@@ -196,7 +210,20 @@ function hydrate() {
   hydrated = true;
   try {
     const raw = window.sessionStorage.getItem(CAPSTER_STORAGE_KEY);
-    if (raw) state = { ...initialCapsterState, ...(JSON.parse(raw) as CapsterState) };
+    if (raw) {
+      const parsed = JSON.parse(raw) as CapsterState;
+      const today = getTodayShiftDate();
+      state = {
+        ...initialCapsterState,
+        ...parsed,
+        shiftInfo: {
+          ...initialCapsterState.shiftInfo,
+          ...(parsed.shiftInfo || {}),
+          date: today.date,
+          day: today.day,
+        },
+      };
+    }
   } catch {
     /* ignore */
   }
@@ -298,7 +325,11 @@ export const capsterActions = {
         ...state.shiftInfo,
         isCheckedIn: true,
         checkedInAt:
-          new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
+          new Date().toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "Asia/Jakarta",
+          }) + " WIB",
         isShiftEnded: false,
       },
     });

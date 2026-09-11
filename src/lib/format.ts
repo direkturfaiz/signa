@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 export function formatRupiah(value: number): string {
   return "Rp " + Math.round(value).toLocaleString("id-ID");
 }
@@ -17,21 +19,41 @@ const BULAN = [
   "Desember",
 ];
 
-export function formatTanggal(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+export function formatTanggal(iso: string | Date | null | undefined): string {
+  if (!iso) return "-";
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
 }
 
-export function formatWaktu(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+export function formatWaktu(
+  iso: string | Date | null | undefined,
+  withWib: boolean = false,
+): string {
+  if (!iso) return "-";
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  if (isNaN(d.getTime())) return "-";
+  const timeStr = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(d);
+  return withWib ? `${timeStr} WIB` : timeStr;
 }
 
-export function formatTanggalWaktu(iso: string): string {
-  return `${formatTanggal(iso)} • ${formatWaktu(iso)}`;
+export function formatTanggalWaktu(iso: string | Date | null | undefined): string {
+  if (!iso) return "-";
+  return `${formatTanggal(iso)} • ${formatWaktu(iso, true)}`;
 }
 
-export function formatWaktuRelatif(dateInput: Date | string): string {
+export function formatWaktuRelatif(dateInput: Date | string | null | undefined): string {
+  if (!dateInput) return "-";
   const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   if (isNaN(date.getTime())) return "-";
   const now = new Date();
@@ -46,7 +68,97 @@ export function formatWaktuRelatif(dateInput: Date | string): string {
   if (diffHours < 24) return `${diffHours} jam yang lalu`;
   if (diffDays === 1) return "Kemarin";
   if (diffDays < 7) return `${diffDays} hari lalu`;
-  return `${date.getDate()} ${BULAN[date.getMonth()] || ""}`;
+  return formatTanggal(date);
+}
+
+/**
+ * Format string jam Asia/Jakarta (WIB) saat ini atau dari objek Date tertentu
+ */
+export function getWibTimeString(date: Date = new Date(), withWib: boolean = true): string {
+  const timeStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+  return withWib ? `${timeStr} WIB` : timeStr;
+}
+
+/**
+ * Menghasilkan nama bulan dan tahun Indonesia secara dinamis (contoh: "September 2026")
+ * Mendukung offset bulan (misal -1 untuk "Agustus 2026")
+ */
+export function getIndonesianMonthYear(
+  offsetMonths: number = 0,
+  baseDate: Date = new Date(),
+): string {
+  const d = new Date(baseDate);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offsetMonths);
+  return d.toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
+}
+
+/**
+ * Hook React untuk mendapatkan jam & tanggal real-time (live clock)
+ */
+export function useLiveClock(intervalMs: number = 1000): Date {
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+
+  return currentTime;
+}
+
+/**
+ * Format jam dan tanggal real-time WIB
+ */
+export function formatWibClock(
+  date: Date = new Date(),
+  options?: {
+    withSeconds?: boolean;
+    withDay?: boolean;
+    withDate?: boolean;
+    withYear?: boolean;
+  },
+): string {
+  const {
+    withSeconds = false,
+    withDay = true,
+    withDate = true,
+    withYear = true,
+  } = options || {};
+
+  const timeStr = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(withSeconds ? { second: "2-digit" } : {}),
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(date);
+
+  if (!withDate) {
+    return `${timeStr} WIB`;
+  }
+
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    ...(withDay ? { weekday: "long" } : {}),
+    day: "numeric",
+    month: "long",
+    ...(withYear ? { year: "numeric" } : {}),
+    timeZone: "Asia/Jakarta",
+  };
+  const dateStr = date.toLocaleDateString("id-ID", dateOptions);
+
+  return `${dateStr} • ${timeStr} WIB`;
 }
 
 /**
@@ -102,5 +214,24 @@ export function formatCustomerId(id?: string | null, dateInput?: string | Date |
 
 export function formatTransactionId(id?: string | null, dateInput?: string | Date | null): string {
   return formatShortId(id, "TRX", dateInput);
+}
+
+/**
+ * Format string atau angka dengan pemisah ribuan titik (contoh: 50000 -> "50.000")
+ */
+export function formatNumberWithDots(val: number | string | null | undefined): string {
+  if (val === null || val === undefined || val === "") return "";
+  const digits = String(val).replace(/\D/g, "");
+  if (!digits) return "";
+  return new Intl.NumberFormat("id-ID").format(Number(digits));
+}
+
+/**
+ * Mengonversi string berformat titik ribuan ke angka murni (contoh: "50.000" -> 50000)
+ */
+export function parseNumberFromDots(val: string | number | null | undefined): number {
+  if (val === null || val === undefined || val === "") return 0;
+  const digits = String(val).replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
 }
 

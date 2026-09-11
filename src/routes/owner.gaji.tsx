@@ -29,7 +29,7 @@ import {
   OwnerMobileHeader,
   OwnerBottomNav,
 } from "@/components/owner/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, getIndonesianMonthYear } from "@/lib/format";
 import {
   getOwnerSalaryData,
   getOwnerCapsterBaseTransactions,
@@ -87,7 +87,7 @@ function OwnerGajiPage() {
         if (isMounted && liveSummary) {
           commissionActions.syncWithLiveSalaryData(liveSummary);
           setDateRangeText(liveSummary.dateRangeText);
-          if (!selectedCapsterId && liveSummary.capsters.length > 0) {
+          if (!selectedCapsterId && liveSummary.capsters.length > 0 && liveSummary.capsters[0]) {
             setSelectedCapsterId(liveSummary.capsters[0].capsterId);
           }
         }
@@ -128,8 +128,8 @@ function OwnerGajiPage() {
 
   // 2. Fetch live base transactions for the selected capster in detail view
   useEffect(() => {
+    let isMounted = true;
     if (viewMode === "detail" && currentDetailCapster) {
-      let isMounted = true;
       const targetId = currentDetailCapster.capsterId || currentDetailCapster.id;
       setLoadingTransactions(true);
       getOwnerCapsterBaseTransactions({
@@ -149,11 +149,11 @@ function OwnerGajiPage() {
         .finally(() => {
           if (isMounted) setLoadingTransactions(false);
         });
-
-      return () => {
-        isMounted = false;
-      };
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [viewMode, currentDetailCapster?.capsterId, periodFilter]);
 
   // Base transactions for current detail capster
@@ -230,6 +230,7 @@ function OwnerGajiPage() {
         day: "numeric",
         month: "short",
         year: "numeric",
+        timeZone: "Asia/Jakarta",
       }),
     );
     setPaymentNotes(`Pembayaran komisi ${c.name} periode ${c.period || dateRangeText}`);
@@ -1306,8 +1307,15 @@ function OwnerGajiPage() {
                       className="px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs font-semibold text-slate-200 outline-hidden hover:bg-slate-800 transition-colors"
                     >
                       <option value="all">Semua Periode</option>
-                      <option value="Mei 2025">Mei 2025</option>
-                      <option value="Apr 2025">Apr 2025</option>
+                      <option value={getIndonesianMonthYear(0)}>
+                        {getIndonesianMonthYear(0)}
+                      </option>
+                      <option value={getIndonesianMonthYear(-1)}>
+                        {getIndonesianMonthYear(-1)}
+                      </option>
+                      <option value={getIndonesianMonthYear(-2)}>
+                        {getIndonesianMonthYear(-2)}
+                      </option>
                     </select>
 
                     {/* Mobile link to open dedicated history page */}

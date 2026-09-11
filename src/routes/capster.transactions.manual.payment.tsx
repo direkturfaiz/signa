@@ -9,7 +9,7 @@ import {
   PrimaryButton,
 } from "@/components/barberin/ui";
 import { CapsterHeader } from "@/components/capster/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatNumberWithDots, parseNumberFromDots } from "@/lib/format";
 import {
   CAPSTER_SERVICES,
   capsterActions,
@@ -178,10 +178,12 @@ function ManualPaymentConfirmationPage() {
           day: "2-digit",
           month: "long",
           year: "numeric",
+          timeZone: "Asia/Jakarta",
         }),
         time: new Date().toLocaleTimeString("id-ID", {
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: "Asia/Jakarta",
         }),
         customerName: result.customerName,
         customerPhone: manualDraft.customerPhone,
@@ -328,10 +330,11 @@ function ManualPaymentConfirmationPage() {
 
                 <input
                   id="cash-input"
-                  type="number"
-                  value={cashReceived || ""}
+                  type="text"
+                  inputMode="numeric"
+                  value={cashReceived ? formatNumberWithDots(cashReceived) : ""}
                   onChange={(e) => {
-                    setCashReceived(Number(e.target.value) || 0);
+                    setCashReceived(parseNumberFromDots(e.target.value));
                     setError("");
                   }}
                   placeholder="0"

@@ -237,7 +237,7 @@ function ReceiptPage() {
               </>
             ) : null}
             <InfoRow label="Tanggal" value={formatTanggal(receiptData.createdAt)} />
-            <InfoRow label="Waktu" value={formatWaktu(receiptData.createdAt)} />
+            <InfoRow label="Waktu" value={formatWaktu(receiptData.createdAt, true)} />
           </div>
 
           <div className="space-y-2 border-t border-white/10 pt-4">

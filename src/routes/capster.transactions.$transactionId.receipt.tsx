@@ -130,10 +130,12 @@ function CapsterReceiptPage() {
             day: "2-digit",
             month: "long",
             year: "numeric",
+            timeZone: "Asia/Jakarta",
           }),
           time: new Date(detail.createdAt).toLocaleTimeString("id-ID", {
             hour: "2-digit",
             minute: "2-digit",
+            timeZone: "Asia/Jakarta",
           }),
           customerName: detail.customerName,
           ...(detail.customerPhone ? { customerPhone: detail.customerPhone } : {}),

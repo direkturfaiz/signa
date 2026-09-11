@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { capster, shiftCapster, transaksi, users } from "@/db/schema";
+import { getWibTimeString } from "@/lib/format";
 
 export const getActiveShift = createServerFn({
   method: "GET",
@@ -24,13 +25,10 @@ export const getActiveShift = createServerFn({
     }
 
     if (!capsterId) {
-      const firstCapster = await db.select().from(capster).limit(1);
-      if (firstCapster[0]) capsterId = firstCapster[0].id_capster;
+      return null;
     }
 
-    if (!capsterId) return null;
-
-    const active = await db
+    const rows = await db
       .select()
       .from(shiftCapster)
       .where(
@@ -42,9 +40,7 @@ export const getActiveShift = createServerFn({
       .orderBy(desc(shiftCapster.created_at))
       .limit(1);
 
-    if (!active[0]) return null;
-
-    return active[0];
+    return rows[0] || null;
   });
 
 export const checkInShift = createServerFn({
@@ -68,7 +64,7 @@ export const checkInShift = createServerFn({
     }
 
     const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} WIB`;
+    const timeStr = getWibTimeString(now);
 
     const [newShift] = await db
       .insert(shiftCapster)
@@ -104,7 +100,7 @@ export const endShift = createServerFn({
     }, 0);
 
     const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} WIB`;
+    const timeStr = getWibTimeString(now);
 
     const [updated] = await db
       .update(shiftCapster)

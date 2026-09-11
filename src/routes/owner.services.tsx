@@ -37,7 +37,7 @@ import {
   OwnerMobileHeader,
   OwnerBottomNav,
 } from "@/components/owner/ui";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatNumberWithDots, parseNumberFromDots } from "@/lib/format";
 import {
   getOwnerServices,
   createOwnerService,
@@ -79,19 +79,6 @@ function getServiceCategory(service: { nama_layanan: string; deskripsi?: string 
   if (text.includes("cukur") || text.includes("shaving") || text.includes("kumis") || text.includes("jenggot") || text.includes("beard")) return "Cukur";
   if (text.includes("wash") || text.includes("keramas") || text.includes("cuci") || text.includes("massage") || text.includes("pijat")) return "Perawatan";
   return "Rambut";
-}
-
-// Helper to format number with thousand dots separator (e.g. 50000 -> 50.000)
-function formatNumberWithDots(val: number | string): string {
-  const digits = String(val).replace(/\D/g, "");
-  if (!digits) return "";
-  return new Intl.NumberFormat("id-ID").format(Number(digits));
-}
-
-// Helper to parse numeric value from formatted dots string
-function parseNumberFromDots(val: string): number {
-  const digits = String(val).replace(/\D/g, "");
-  return digits ? Number(digits) : 0;
 }
 
 function OwnerServicesPage() {

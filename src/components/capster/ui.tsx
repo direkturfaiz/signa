@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
-import { formatRupiah, formatTransactionId } from "@/lib/format";
+import { formatRupiah, formatTransactionId, formatWibClock, useLiveClock } from "@/lib/format";
 import { BarberinLogo, GlassCard } from "@/components/barberin/ui";
 import {
   capsterActions,
@@ -660,6 +660,8 @@ export function SummaryCard({
 
 // Card Info Shift
 export function ShiftInfoCard({ shift }: { shift: ShiftInfo }) {
+  const liveClock = useLiveClock(1000);
+
   return (
     <GlassCard className="space-y-3 p-4">
       <div className="flex items-center gap-2 border-b border-white/10 pb-2.5">
@@ -674,6 +676,12 @@ export function ShiftInfoCard({ shift }: { shift: ShiftInfo }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Hari</span>
           <span className="font-semibold">{shift.day}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Waktu Sekarang</span>
+          <span className="font-semibold text-emerald-400 font-mono">
+            {formatWibClock(liveClock, { withDate: false, withSeconds: true })}
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Waktu Mulai</span>
