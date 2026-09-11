@@ -171,22 +171,28 @@ function OwnerDashboardPage() {
                 </button>
 
                 {isFilterDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-44 bg-[#0F1D33] border border-slate-700 rounded-xl shadow-2xl py-1 z-30 animate-in fade-in zoom-in-95 duration-150">
-                    {periodOptions.map((opt) => (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => handlePeriodChange(opt.key)}
-                        className={`w-full text-left px-3.5 py-2 text-xs font-medium transition-colors ${
-                          activePeriod === opt.key
-                            ? "bg-blue-600 text-white font-semibold"
-                            : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div
+                      className="fixed inset-0 z-20"
+                      onClick={() => setIsFilterDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-44 bg-[#0F1D33] border border-slate-700 rounded-xl shadow-2xl py-1 z-30 animate-in fade-in zoom-in-95 duration-150">
+                      {periodOptions.map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => handlePeriodChange(opt.key)}
+                          className={`w-full text-left px-3.5 py-2 text-xs font-medium transition-colors ${
+                            activePeriod === opt.key
+                              ? "bg-blue-600 text-white font-semibold"
+                              : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
 
