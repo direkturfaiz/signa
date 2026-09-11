@@ -975,26 +975,13 @@ function OwnerGajiPage() {
                   )}
                 </div>
 
-                {/* Date range & Status Dropdown & Apply */}
+                {/* Date range & Apply */}
                 <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                   {/* Date Range Box */}
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs font-medium text-slate-300">
                     <Calendar className="h-3.5 w-3.5 text-blue-400" />
                     <span>{dateRangeText}</span>
                   </div>
-
-                  {/* Status Dropdown */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs font-semibold text-slate-200 outline-hidden hover:bg-slate-800 transition-colors"
-                  >
-                    <option value="all">Semua Status</option>
-                    <option value="Belum Dibayar">Belum Dibayar</option>
-                    <option value="Sudah Dibayar">Sudah Dibayar</option>
-                    <option value="Diproses">Diproses</option>
-                    <option value="Belum Diatur">Belum Diatur</option>
-                  </select>
 
                   {/* Refresh Button */}
                   <button
@@ -1115,7 +1102,7 @@ function OwnerGajiPage() {
                     Data Komisi Capster
                   </h3>
 
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
                     {/* Search Input */}
                     <div className="relative w-full sm:w-56">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
@@ -1127,6 +1114,19 @@ function OwnerGajiPage() {
                         className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#0A1424] border border-slate-700/80 text-white placeholder:text-slate-500 outline-hidden focus:border-blue-500 transition-all"
                       />
                     </div>
+
+                    {/* Status Dropdown */}
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs font-semibold text-slate-200 outline-hidden hover:bg-slate-800 transition-colors shrink-0"
+                    >
+                      <option value="all">Semua Status</option>
+                      <option value="Belum Dibayar">Belum Dibayar</option>
+                      <option value="Sudah Dibayar">Sudah Dibayar</option>
+                      <option value="Diproses">Diproses</option>
+                      <option value="Belum Diatur">Belum Diatur</option>
+                    </select>
 
                     {/* Export Button */}
                     <button
