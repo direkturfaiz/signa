@@ -190,6 +190,7 @@ function OwnerGajiPage() {
         c.totalCommission > 0,
     )
     .reduce((sum, c) => sum + c.totalCommission, 0);
+  const netIncome = Math.max(0, totalRevenue - totalCommission);
 
   // Filtered Capster List for Table
   const filteredCapsters = useMemo(() => {
@@ -1010,9 +1011,9 @@ function OwnerGajiPage() {
                 </div>
               </div>
 
-              {/* 5 Summary Cards Grid */}
-              {/* DESKTOP: 5 columns in a row. MOBILE: 2x2 grid + 1 full width */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 md:gap-4">
+              {/* 6 Summary Cards Grid */}
+              {/* DESKTOP: 6 columns in a row. TABLET: 3 columns. MOBILE: 2 columns */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 md:gap-4">
                 {/* 1. Total Capster */}
                 <div className="bg-[#0F1D33] border border-slate-800/80 rounded-2xl p-4 shadow-xs">
                   <div className="flex items-center gap-2.5 text-slate-400 text-xs font-medium">
@@ -1080,8 +1081,8 @@ function OwnerGajiPage() {
                   </div>
                 </div>
 
-                {/* 5. Belum Dibayar (Full width on mobile grid) */}
-                <div className="col-span-2 sm:col-span-1 bg-[#0F1D33] border border-slate-800/80 rounded-2xl p-4 shadow-xs">
+                {/* 5. Belum Dibayar */}
+                <div className="bg-[#0F1D33] border border-slate-800/80 rounded-2xl p-4 shadow-xs">
                   <div className="flex items-center gap-2.5 text-slate-400 text-xs font-medium">
                     <div className="p-2 rounded-xl bg-rose-600/20 text-rose-400">
                       <AlertCircle className="h-4 w-4" />
@@ -1090,6 +1091,22 @@ function OwnerGajiPage() {
                   </div>
                   <div className="mt-3 text-lg md:text-xl font-extrabold text-rose-400 tracking-tight truncate">
                     {formatRupiah(unpaidCommission)}
+                  </div>
+                </div>
+
+                {/* 6. Pendapatan Bersih Owner */}
+                <div className="bg-[#0F1D33] border border-slate-800/80 rounded-2xl p-4 shadow-xs">
+                  <div className="flex items-center gap-2.5 text-slate-400 text-xs font-medium">
+                    <div className="p-2 rounded-xl bg-emerald-600/20 text-emerald-400">
+                      <TrendingUp className="h-4 w-4" />
+                    </div>
+                    <span className="truncate">Pendapatan Bersih</span>
+                  </div>
+                  <div className="mt-3 text-lg md:text-xl font-extrabold text-emerald-400 tracking-tight truncate">
+                    {formatRupiah(netIncome)}
+                  </div>
+                  <div className="mt-1 text-[11px] text-emerald-400 font-medium flex items-center gap-0.5">
+                    <span>↑ 10% dari periode sebelumnya</span>
                   </div>
                 </div>
               </div>

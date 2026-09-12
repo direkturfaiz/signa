@@ -248,36 +248,6 @@ function OwnerAuditFinancePage() {
               </div>
             </div>
 
-            {/* Metode Dropdown */}
-            <select
-              value={paymentMethod}
-              onChange={(e) => {
-                setPaymentMethod(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 bg-[#0A1424] border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">Semua Metode</option>
-              <option value="tunai">Tunai</option>
-              <option value="qris">QRIS</option>
-              <option value="transfer">Transfer</option>
-            </select>
-
-            {/* Status Dropdown */}
-            <select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2 bg-[#0A1424] border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">Semua Status</option>
-              <option value="paid">Berhasil / Lunas</option>
-              <option value="cancelled">Dibatalkan</option>
-              <option value="pending">Menunggu</option>
-            </select>
-
             {/* Button */}
             <button
               type="button"
@@ -454,11 +424,41 @@ function OwnerAuditFinancePage() {
                   Daftar seluruh transaksi yang diverifikasi pada audit keuangan.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Metode Dropdown */}
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => {
+                    setPaymentMethod(e.target.value);
+                    setPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs text-slate-300 hover:border-slate-600 focus:outline-none focus:border-blue-500 cursor-pointer transition-colors"
+                >
+                  <option value="all">Semua Metode</option>
+                  <option value="tunai">Tunai</option>
+                  <option value="qris">QRIS</option>
+                  <option value="transfer">Transfer</option>
+                </select>
+
+                {/* Status Dropdown */}
+                <select
+                  value={status}
+                  onChange={(e) => {
+                    setStatus(e.target.value);
+                    setPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs text-slate-300 hover:border-slate-600 focus:outline-none focus:border-blue-500 cursor-pointer transition-colors"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="paid">Berhasil / Lunas</option>
+                  <option value="cancelled">Dibatalkan</option>
+                  <option value="pending">Menunggu</option>
+                </select>
+
                 <button
                   type="button"
                   onClick={() => alert("Fitur Export CSV data transaksi siap.")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs font-semibold text-slate-300 hover:text-white"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0A1424] border border-slate-700/80 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition-colors"
                 >
                   <Download className="h-3.5 w-3.5 text-blue-400" />
                   <span>Export</span>
