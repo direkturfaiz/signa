@@ -1,11 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Lock, Mail, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { BarberinLogo } from "@/components/barberin/ui";
 
 import { loginOwner } from "@/lib/owner";
-import { ownerActions, useOwner } from "@/lib/owner-store";
+import { getOwnerAuth, ownerActions, useOwner } from "@/lib/owner-store";
 
 export const Route = createFileRoute("/owner/login")({
   head: () => ({
@@ -14,16 +14,33 @@ export const Route = createFileRoute("/owner/login")({
       { name: "description", content: "Masuk ke Dashboard Manajemen Owner BARBERIN." },
     ],
   }),
+  beforeLoad: () => {
+    if (typeof window !== "undefined" && getOwnerAuth()) {
+      throw redirect({ to: "/owner/dashboard" });
+    }
+  },
   component: OwnerLoginPage,
 });
 
 function OwnerLoginPage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useOwner();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Jika sudah login, alihkan langsung ke dashboard
+  useEffect(() => {
+    if (isLoggedIn || (typeof window !== "undefined" && getOwnerAuth())) {
+      navigate({ to: "/owner/dashboard", replace: true });
+    }
+  }, [isLoggedIn, navigate]);
+
+  if (isLoggedIn || (typeof window !== "undefined" && getOwnerAuth())) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +69,15 @@ function OwnerLoginPage() {
       navigate({ to: "/owner/dashboard", replace: true });
     } catch (err: any) {
       console.error(err);
-      const msg = err?.message || "Email atau password salah.";
+      let msg = err?.message || "Email atau password salah.";
+      if (
+        msg.includes("Failed query") ||
+        msg.includes("CONNECT_TIMEOUT") ||
+        msg.includes("fetch failed") ||
+        msg.includes("ETIMEDOUT")
+      ) {
+        msg = "Gagal terhubung ke server database. Periksa koneksi internet Anda.";
+      }
       setError(msg);
       toast.error("Gagal Masuk", { description: msg });
     } finally {

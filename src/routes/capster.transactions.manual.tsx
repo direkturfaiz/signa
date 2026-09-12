@@ -8,7 +8,7 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { capsterActions } from "@/lib/capster-store";
 
 export const Route = createFileRoute("/capster/transactions/manual")({
@@ -31,7 +31,8 @@ function ManualTransactionModePage() {
   }
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Buat Transaksi"
         backTo="/capster/transactions"
@@ -107,5 +108,6 @@ function ManualTransactionModePage() {
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

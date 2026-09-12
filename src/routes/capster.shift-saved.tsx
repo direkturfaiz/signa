@@ -8,7 +8,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { capsterActions } from "@/lib/capster-store";
 
 export const Route = createFileRoute("/capster/shift-saved")({
@@ -35,7 +35,8 @@ function ShiftSavedPage() {
   };
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Shift Selesai"
         showBack={false}
@@ -109,5 +110,6 @@ function ShiftSavedPage() {
         </SecondaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

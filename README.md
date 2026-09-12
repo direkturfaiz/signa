@@ -1852,3 +1852,65 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+---
+
+# BARBERIN — OWNER & SAAS PLATFORM ARCHITECTURE SPECIFICATION
+
+> Referensi visual resmi:
+> - **Gambar 1**: Business Flow Admin Platform (BPMN)
+> - **Gambar 2**: SaaS Platform ERD (Admin Platform)
+>
+> Dokumentasi lengkap: [docs/BPMN_ERD_OWNER_SAAS.md](file:///c:/Users/ASUS%20ROG/Downloads/barberin-smooth-flow-main%20(1)%20-%20Copy/barberin-smooth-flow-main/docs/BPMN_ERD_OWNER_SAAS.md)
+
+## 1. BPMN Admin Platform / Business Flow (Gambar 1)
+
+Alur lengkap dari landing page hingga aktivasi dan akses fitur pada sistem BARBERIN:
+
+1. **Landing Page BARBERIN**:
+   - Informasi produk
+   - Daftar fitur
+   - Pilihan paket (**FREE**, **PRO**, **ENTERPRISE**)
+2. **Calon Owner / Pengguna**:
+   - Tertarik menggunakan BARBERIN untuk barbershop mereka.
+3. **Pilih Aksi (Decision Gateway)**:
+   - **ALUR 1 — Minta Demo**:
+     - `4. Isi Form Request Demo`: Calon Owner mengisi form permintaan demo (Nama, Email, Nomor kontak, Nama bisnis [opsional], Pesan/Note [opsional]).
+     - `5. Data Tersimpan`: Sistem menyimpan request demo ke database (`demo_request`).
+     - `6. Admin Platform`: Admin Platform melihat request demo baru (Melihat detail request, Menghubungi calon pelanggan, Menindaklanjuti demo).
+     - `7. Update Status Request`: Status request demo dapat diubah (`Pending`, `Diproses`, `Selesai`, `Ditolak`).
+     - `Demo Selesai`: Calon pelanggan mendapat informasi dan tindak lanjut dari tim.
+   - **ALUR 2 — Daftar**:
+     - `4. Registrasi Owner`: Calon Owner mengisi data akun (Nama, Email, Nomor kontak, Password).
+     - `5. Registrasi Business / Barbershop`: Mengisi data bisnis/barbershop (Nama barbershop, Alamat, Informasi bisnis lainnya).
+     - `6. Pilih Plan`: Memilih paket yang sesuai (**FREE Rp 0**, **PRO Rp 149.000**, **ENTERPRISE Custom**).
+     - `7. Subscription`: Sistem membuat subscription untuk business (Plan yang dipilih, Status awal, Periode subscription).
+     - `8. Perlu Pembayaran? (Gateway)`:
+       - **Tidak (FREE)**: Langsung Aktivasi Plan.
+       - **Ya (PRO / Berbayar)**: `9. Pembayaran Subscription` (Nominal, Metode pembayaran, Status pembayaran) -> Aktivasi Plan.
+     - `10. Akses Fitur`: Business dapat menggunakan fitur sesuai plan yang aktif (`Plan_Feature`), sistem siap digunakan, Owner dapat mengelola operasional barbershop.
+
+## 2. ERD SaaS Platform / Admin Platform (Gambar 2)
+
+### Entitas Utama SaaS Platform:
+1. `owner` (`owner_id` PK, `name`, `email` UQ, `phone`, `password_hash`, `status`, `created_at`, `updated_at`)
+2. `business` (`business_id` PK, `owner_id` FK, `business_name`, `status`, `created_at`, `updated_at`)
+3. `plan` (`plan_id` PK, `plan_name` UQ, `description`, `price`, `billing_period`, `status`, `created_at`, `updated_at`)
+4. `feature` (`feature_id` PK, `feature_name`, `description`, `module`, `status`, `created_at`, `updated_at`)
+5. `plan_feature` (`plan_feature_id` PK, `plan_id` FK, `feature_id` FK)
+6. `subscription` (`subscription_id` PK, `business_id` FK, `plan_id` FK, `status`, `start_date`, `end_date`, `created_at`, `updated_at`)
+7. `subscription_payment` (`subscription_payment_id` PK, `subscription_id` FK, `amount`, `payment_method`, `status`, `payment_date`, `reference_id` UQ, `created_at`, `updated_at`)
+8. `demo_request` (`demo_request_id` PK, `owner_id` FK NULL, `name`, `email`, `phone`, `business_name`, `status`, `notes`, `created_at`, `updated_at`)
+
+### Kardinalitas Relasi:
+- `owner` (1) ───< (N) `business`
+- `business` (1) ───< (N) `subscription`
+- `plan` (1) ───< (N) `subscription`
+- `plan` (1) ───< (N) `plan_feature`
+- `feature` (1) ───< (N) `plan_feature`
+- `subscription` (1) ───< (N) `subscription_payment`
+- `owner` (1) - - - (0..N) `demo_request` (opsional)
+
+### Batasan Pemisahan Lapisan:
+- Modul SaaS Platform di atas sepenuhnya terpisah dari transaksi operasional barbershop (`pelanggan`, `capster`, `layanan`, `booking`, `transaksi`, `pembayaran`, `shift`, `audit aktivitas`, `audit keuangan`).
+

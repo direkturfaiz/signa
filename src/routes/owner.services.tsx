@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 
 import {
+  OwnerAuthGuard,
   OwnerSidebar,
   OwnerHeader,
   OwnerMobileHeader,
@@ -360,7 +361,8 @@ function OwnerServicesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
+    <OwnerAuthGuard>
+      <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
       {/* Sidebar Desktop */}
       <OwnerSidebar activePath="/owner/services" />
 
@@ -1574,5 +1576,6 @@ function OwnerServicesPage() {
         </div>
       )}
     </div>
+    </OwnerAuthGuard>
   );
 }

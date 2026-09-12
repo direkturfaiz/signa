@@ -9,7 +9,7 @@ import {
   PrimaryButton,
   SkeletonCard,
 } from "@/components/barberin/ui";
-import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
 import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { capsterActions, useCapster, type CapsterTransaction } from "@/lib/capster-store";
 import { getCapsterTransactions } from "@/lib/capster-transactions";
@@ -87,7 +87,8 @@ function TodayTransactionsPage() {
   });
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Transaksi Hari Ini"
         backTo="/capster/dashboard"
@@ -218,5 +219,6 @@ function TodayTransactionsPage() {
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

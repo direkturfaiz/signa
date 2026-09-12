@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { AlertCircle, Eye, EyeOff, Lock, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +9,7 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { capsterActions, useCapster } from "@/lib/capster-store";
+import { capsterActions, getCapsterAuth, useCapster } from "@/lib/capster-store";
 import { loginCapster } from "@/lib/capsters";
 import { getActiveShift } from "@/lib/shifts";
 
@@ -20,6 +20,11 @@ export const Route = createFileRoute("/capster/login")({
       { name: "description", content: "Masuk ke akun Capster BARBERIN." },
     ],
   }),
+  beforeLoad: () => {
+    if (typeof window !== "undefined" && getCapsterAuth()) {
+      throw redirect({ to: "/capster/dashboard" });
+    }
+  },
   component: CapsterLoginPage,
 });
 
@@ -34,25 +39,38 @@ function CapsterLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Jika capster sudah check-in dan belum akhiri shift, langsung ke dashboard
-    if (isLoggedIn && shiftInfo.isCheckedIn && !shiftInfo.isShiftEnded) {
-      navigate({ to: "/capster/dashboard", replace: true });
+    const isAuthed = isLoggedIn || (typeof window !== "undefined" && getCapsterAuth());
+    if (isAuthed) {
+      if (shiftInfo.isCheckedIn && !shiftInfo.isShiftEnded) {
+        navigate({ to: "/capster/dashboard", replace: true });
+        return;
+      }
+
+      if (capsterId) {
+        getActiveShift({
+          data: { capsterId, capsterName },
+        })
+          .then((active) => {
+            if (active) {
+              capsterActions.checkIn(active.id_shift);
+              navigate({ to: "/capster/dashboard", replace: true });
+            } else {
+              navigate({ to: "/capster/dashboard", replace: true });
+            }
+          })
+          .catch(() => {
+            navigate({ to: "/capster/dashboard", replace: true });
+          });
+      } else {
+        navigate({ to: "/capster/dashboard", replace: true });
+      }
       return;
     }
-
-    if (capsterId) {
-      getActiveShift({
-        data: { capsterId, capsterName },
-      })
-        .then((active) => {
-          if (active) {
-            capsterActions.checkIn(active.id_shift);
-            navigate({ to: "/capster/dashboard", replace: true });
-          }
-        })
-        .catch(() => {});
-    }
   }, [isLoggedIn, shiftInfo.isCheckedIn, shiftInfo.isShiftEnded, capsterId, capsterName, navigate]);
+
+  if (isLoggedIn || (typeof window !== "undefined" && getCapsterAuth())) {
+    return null;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

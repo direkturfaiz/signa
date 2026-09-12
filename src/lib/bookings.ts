@@ -15,6 +15,11 @@ import {
   users,
 } from "@/db/schema";
 import { getWibTimeString } from "@/lib/format";
+import {
+  autoCancelExpiredPendingTransactions,
+  isTransactionExpired,
+  CANCEL_REASON_DETAIL,
+} from "@/lib/auto-cancel";
 
 type CreateBookingInput = {
   customerName: string;
@@ -268,6 +273,9 @@ export const getTransactionDetail = createServerFn({
 })
   .validator((data: { transactionId: string }) => data)
   .handler(async ({ data }) => {
+    // 0. Jalankan pembersihan auto-cancel untuk transaksi > 2 jam
+    await autoCancelExpiredPendingTransactions();
+
     const txRows = await db
       .select({
         id_transaksi: transaksi.id_transaksi,
@@ -405,12 +413,19 @@ export const getTransactionDetail = createServerFn({
       .where(eq(struk.id_transaksi, tx.id_transaksi))
       .limit(1);
 
-    const strukData = strukRows[0] ?? null;
+    const isExpired = isTransactionExpired(tx.created_at, tx.status_transaksi);
+    const finalStatus = isExpired ? "cancelled" : tx.status_transaksi;
+    const finalBookingStatus = isExpired
+      ? "cancelled"
+      : (bookingInfo?.status ?? "confirmed");
+    const finalNotes = isExpired
+      ? (bookingInfo?.catatan || CANCEL_REASON_DETAIL)
+      : (bookingInfo?.catatan ?? null);
 
     return {
       transactionId: tx.id_transaksi,
       bookingId: tx.id_booking,
-      bookingStatus: bookingInfo?.status ?? "confirmed",
+      bookingStatus: finalBookingStatus,
       customerId: tx.id_pelanggan,
       customerName: tx.customer_name,
       customerPhone: tx.customer_phone,
@@ -421,12 +436,12 @@ export const getTransactionDetail = createServerFn({
       subtotal: Number(tx.subtotal),
       discount: Number(tx.diskon),
       total: Number(tx.total),
-      status: tx.status_transaksi,
+      status: finalStatus,
       paymentMethod: payment?.metode_pembayaran ?? "tunai",
       paymentStatus: payment?.status_pembayaran ?? "pending",
       items,
       struk: strukData,
-      notes: bookingInfo?.catatan ?? null,
+      notes: finalNotes,
     };
   });
 
@@ -478,6 +493,30 @@ export const confirmPaymentAndGenerateStruk = createServerFn({
           );
         }
       }
+    }
+
+    // 0.1 Cek apakah transaksi sudah kedaluwarsa (> 2 jam) atau sudah dibatalkan
+    const [txRecord] = await db
+      .select({
+        status_transaksi: transaksi.status_transaksi,
+        created_at: transaksi.created_at,
+      })
+      .from(transaksi)
+      .where(eq(transaksi.id_transaksi, data.transactionId))
+      .limit(1);
+
+    if (!txRecord) {
+      throw new Error("Transaksi tidak ditemukan.");
+    }
+
+    if (
+      txRecord.status_transaksi === "cancelled" ||
+      isTransactionExpired(txRecord.created_at, txRecord.status_transaksi)
+    ) {
+      await autoCancelExpiredPendingTransactions();
+      throw new Error(
+        "Transaksi tidak dapat dikonfirmasi karena telah otomatis dibatalkan sistem (melebihi batas waktu 2 jam menunggu persetujuan capster - Alasan lainnya).",
+      );
     }
 
     const now = new Date();
@@ -588,6 +627,7 @@ export const getCustomerTransactions = createServerFn({
     const results = [];
 
     for (const t of txs) {
+      const isExpired = isTransactionExpired(t.created_at, t.status_transaksi);
       let serviceNames = "Layanan Barbershop";
       if (t.id_booking) {
         const details = await db
@@ -622,7 +662,12 @@ export const getCustomerTransactions = createServerFn({
         }),
         serviceNames,
         total: Number(t.total),
-        status: t.status_transaksi === "paid" ? "Selesai" : "Menunggu",
+        status:
+          t.status_transaksi === "paid"
+            ? "Selesai"
+            : t.status_transaksi === "cancelled" || isExpired
+              ? "Batal"
+              : "Menunggu",
         paymentMethod: pay?.method ?? "tunai",
       });
     }

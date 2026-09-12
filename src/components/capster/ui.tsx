@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   AlertCircle,
   ArrowLeft,
@@ -29,12 +29,59 @@ import { BarberinLogo, GlassCard } from "@/components/barberin/ui";
 import {
   capsterActions,
   useCapster,
+  getCapsterAuth,
   type CapsterService,
   type CapsterTransaction,
   type ShiftInfo,
   type TransactionStatus,
 } from "@/lib/capster-store";
 import { getCapsterTransactions } from "@/lib/capster-transactions";
+
+// ============================================================================
+// 0. CAPSTER AUTH GUARD
+// ============================================================================
+export function CapsterAuthGuard({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  const { isLoggedIn } = useCapster();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const hasAuth = isLoggedIn || getCapsterAuth();
+    if (!hasAuth) {
+      navigate({ to: "/capster/login", replace: true });
+    }
+  }, [mounted, isLoggedIn, navigate]);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#070D18] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-400 font-medium">Memuat sesi capster...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasAuth = isLoggedIn || getCapsterAuth();
+  if (!hasAuth) {
+    return (
+      <div className="min-h-screen bg-[#070D18] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-400 font-medium">Mengarahkan ke login capster...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 // Komponen Notifikasi Transaksi yang Dapat Digeser (Swipe to Dismiss) & Memiliki Tombol Close
 function SwipeableNotificationCard({
@@ -977,6 +1024,11 @@ export function CapsterTransactionCard({
             </span>
           </div>
           <p className="truncate text-[12px] text-muted-foreground">{trx.serviceNames}</p>
+          {trx.status === "Batal" && trx.notes ? (
+            <p className="text-[11px] text-danger/90 line-clamp-1 italic bg-danger/10 px-2 py-1 rounded-[6px] border border-danger/20 mt-1">
+              {trx.notes}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[13px]">

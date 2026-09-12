@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import {
+  OwnerAuthGuard,
   OwnerSidebar,
   OwnerHeader,
   OwnerMobileHeader,
@@ -136,7 +137,8 @@ function OwnerAuditActivitiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
+    <OwnerAuthGuard>
+      <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
       <OwnerSidebar activePath="/owner/audit-activities" />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -750,5 +752,6 @@ function OwnerAuditActivitiesPage() {
         </div>
       )}
     </div>
+    </OwnerAuthGuard>
   );
 }

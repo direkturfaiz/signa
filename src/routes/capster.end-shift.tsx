@@ -9,7 +9,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
 import { capsterActions, useCapster } from "@/lib/capster-store";
 import { endShift } from "@/lib/shifts";
@@ -44,7 +44,8 @@ function EndShiftPage() {
   };
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Akhiri Shift"
         backTo="/capster/dashboard"
@@ -112,5 +113,6 @@ function EndShiftPage() {
         </SecondaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

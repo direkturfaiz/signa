@@ -8,7 +8,7 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah, formatNumberWithDots, parseNumberFromDots } from "@/lib/format";
 import {
   CAPSTER_SERVICES,
@@ -223,7 +223,8 @@ function ManualPaymentConfirmationPage() {
   };
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Konfirmasi Pembayaran"
         backTo="/capster/transactions/manual/detail"
@@ -420,5 +421,6 @@ function ManualPaymentConfirmationPage() {
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

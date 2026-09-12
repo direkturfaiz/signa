@@ -8,7 +8,7 @@ import {
   PrimaryButton,
   SecondaryButton,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { useCapster } from "@/lib/capster-store";
 
@@ -45,7 +45,8 @@ function ManualTransactionSuccessPage() {
   }
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Transaksi Berhasil!"
         showBack={false}
@@ -134,5 +135,6 @@ function ManualTransactionSuccessPage() {
         </SecondaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

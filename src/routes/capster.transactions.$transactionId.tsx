@@ -21,7 +21,7 @@ import {
   SecondaryButton,
   SkeletonCard,
 } from "@/components/barberin/ui";
-import { CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader, TransactionStatusBadge } from "@/components/capster/ui";
 import { formatRupiah, formatTransactionId, formatCustomerId } from "@/lib/format";
 import {
   useCapster,
@@ -150,58 +150,48 @@ function CapsterTransactionDetailPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <MobileShell>
-        <CapsterHeader title="Detail Transaksi" backTo="/capster/dashboard" showBack={true} />
-        <main className="flex-1 space-y-3 p-4">
-          <SkeletonCard />
-          <SkeletonCard />
-        </main>
-      </MobileShell>
-    );
-  }
-
-  if (trx && loggedInCapsterId && trx.capsterId && trx.capsterId !== loggedInCapsterId) {
-    return (
-      <MobileShell>
-        <CapsterHeader title="Akses Ditolak" backTo="/capster/dashboard" showBack={true} />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/20 text-danger ring-1 ring-danger/40">
-            <AlertCircle className="h-7 w-7" />
-          </div>
-          <h2 className="text-[18px] font-bold text-foreground">Akses Transaksi Ditolak</h2>
-          <p className="text-[13px] text-muted-foreground leading-relaxed">
-            Transaksi ini milik capster lain. Anda tidak berhak melihat atau mengonfirmasi transaksi ini.
-          </p>
-          <div className="pt-2 w-full max-w-[200px]">
-            <PrimaryButton onClick={() => navigate({ to: "/capster/dashboard" })}>
-              Kembali ke Dashboard
-            </PrimaryButton>
-          </div>
-        </main>
-      </MobileShell>
-    );
-  }
-
-  if (!trx) {
-    return (
-      <MobileShell>
-        <CapsterHeader title="Detail Transaksi" backTo="/capster/dashboard" showBack={true} />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-muted-foreground">Transaksi tidak ditemukan.</p>
-          <div className="mt-4 w-full max-w-[200px]">
-            <PrimaryButton onClick={() => navigate({ to: "/capster/dashboard" })}>
-              Kembali ke Dashboard
-            </PrimaryButton>
-          </div>
-        </main>
-      </MobileShell>
-    );
-  }
-
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      {loading ? (
+        <MobileShell>
+          <CapsterHeader title="Detail Transaksi" backTo="/capster/dashboard" showBack={true} />
+          <main className="flex-1 space-y-3 p-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </main>
+        </MobileShell>
+      ) : trx && loggedInCapsterId && trx.capsterId && trx.capsterId !== loggedInCapsterId ? (
+        <MobileShell>
+          <CapsterHeader title="Akses Ditolak" backTo="/capster/dashboard" showBack={true} />
+          <main className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger/20 text-danger ring-1 ring-danger/40">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <h2 className="text-[18px] font-bold text-foreground">Akses Transaksi Ditolak</h2>
+            <p className="text-[13px] text-muted-foreground leading-relaxed">
+              Transaksi ini milik capster lain. Anda tidak berhak melihat atau mengonfirmasi transaksi ini.
+            </p>
+            <div className="pt-2 w-full max-w-[200px]">
+              <PrimaryButton onClick={() => navigate({ to: "/capster/dashboard" })}>
+                Kembali ke Dashboard
+              </PrimaryButton>
+            </div>
+          </main>
+        </MobileShell>
+      ) : !trx ? (
+        <MobileShell>
+          <CapsterHeader title="Detail Transaksi" backTo="/capster/dashboard" showBack={true} />
+          <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <p className="text-muted-foreground">Transaksi tidak ditemukan.</p>
+            <div className="mt-4 w-full max-w-[200px]">
+              <PrimaryButton onClick={() => navigate({ to: "/capster/dashboard" })}>
+                Kembali ke Dashboard
+              </PrimaryButton>
+            </div>
+          </main>
+        </MobileShell>
+      ) : (
+        <MobileShell>
       <CapsterHeader
         title="Detail Transaksi"
         subtitle={`#${formatTransactionId(trx.id, trx.date)}`}
@@ -377,7 +367,9 @@ function CapsterTransactionDetailPage() {
             KEMBALI KE DASHBOARD
           </PrimaryButton>
         )}
-      </BottomActionBar>
-    </MobileShell>
+        </BottomActionBar>
+        </MobileShell>
+      )}
+    </CapsterAuthGuard>
   );
 }

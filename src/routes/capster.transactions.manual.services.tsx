@@ -8,7 +8,7 @@ import {
   MobileShell,
   PrimaryButton,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/format";
 import { capsterActions, useCapster } from "@/lib/capster-store";
@@ -88,7 +88,8 @@ function ManualSelectServicesPage() {
   );
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Pilih Layanan"
         backTo="/capster/transactions"
@@ -243,5 +244,6 @@ function ManualSelectServicesPage() {
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

@@ -9,7 +9,7 @@ import {
   PrimaryButton,
   SelectedCapsterCard,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
 import {
   CAPSTERS,
@@ -140,7 +140,8 @@ function ManualTransactionDetailPage() {
   };
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Detail Transaksi"
         backTo="/capster/transactions/manual/capster"
@@ -340,5 +341,6 @@ function ManualTransactionDetailPage() {
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

@@ -52,7 +52,54 @@ import {
   type OwnerNotificationType,
   getOwnerNotifications,
 } from "@/lib/owner";
-import { ownerActions, useOwner } from "@/lib/owner-store";
+import { ownerActions, useOwner, getOwnerAuth } from "@/lib/owner-store";
+import { useSuperadmin, superadminActions } from "@/lib/superadmin-store";
+
+// ============================================================================
+// 0. AUTH GUARD
+// ============================================================================
+export function OwnerAuthGuard({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  const { isLoggedIn } = useOwner();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const hasAuth = isLoggedIn || getOwnerAuth();
+    if (!hasAuth) {
+      navigate({ to: "/owner/login", replace: true });
+    }
+  }, [mounted, isLoggedIn, navigate]);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#070D18] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-400 font-medium">Memuat sesi...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasAuth = isLoggedIn || getOwnerAuth();
+  if (!hasAuth) {
+    return (
+      <div className="min-h-screen bg-[#070D18] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-400 font-medium">Mengarahkan ke login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 // ============================================================================
 // 1. SIDEBAR (DESKTOP)
@@ -524,6 +571,52 @@ export function OwnerNotificationBell({
 }
 
 // ============================================================================
+// 1.8. BANNER IMPERSONATE (SUPERADMIN TO OWNER)
+// ============================================================================
+export function ImpersonateBanner() {
+  const { impersonation } = useSuperadmin();
+  const navigate = useNavigate();
+
+  if (!impersonation.isImpersonating) return null;
+
+  const handleExit = () => {
+    superadminActions.stopImpersonate();
+    navigate({ to: "/superadmin/tenants" });
+  };
+
+  return (
+    <div className="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-slate-950 px-4 sm:px-6 py-2.5 text-xs font-bold flex flex-wrap items-center justify-between gap-2.5 shadow-md border-b border-amber-600/30 z-50 sticky top-0">
+      <div className="flex items-center gap-2">
+        <span className="flex h-5 w-5 rounded-full bg-slate-950/15 items-center justify-center text-slate-950 font-black text-xs shrink-0">
+          ⚠️
+        </span>
+        <span className="leading-snug">
+          <span className="uppercase tracking-wider font-extrabold mr-1.5">
+            Mode Impersonate
+          </span>
+          <span className="opacity-70">|</span>
+          <span className="ml-1.5 font-normal">
+            Anda sedang melihat:{" "}
+            <strong className="font-bold underline">
+              {impersonation.targetTenant?.nama_barbershop || "Barbershop"}
+            </strong>{" "}
+            (Masuk sebagai Owner)
+          </span>
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={handleExit}
+        className="inline-flex items-center gap-1.5 bg-slate-950 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all shadow-sm active:scale-95 cursor-pointer shrink-0 ml-auto"
+      >
+        <span>Kembali ke Akun Superadmin</span>
+        <ArrowRight className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================================
 // 2. TOP HEADER (DESKTOP)
 // ============================================================================
 export function OwnerHeader({
@@ -546,15 +639,17 @@ export function OwnerHeader({
   const isLight = variant === "light";
 
   return (
-    <header
-      className={`hidden lg:flex items-center ${
-        searchPlaceholder ? "justify-between" : "justify-end"
-      } px-8 py-3.5 sticky top-0 z-30 transition-colors ${
-        isLight
-          ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs"
-          : "bg-[#0A1424] border-b border-slate-800/80"
-      }`}
-    >
+    <>
+      <ImpersonateBanner />
+      <header
+        className={`hidden lg:flex items-center ${
+          searchPlaceholder ? "justify-between" : "justify-end"
+        } px-8 py-3.5 sticky top-0 z-30 transition-colors ${
+          isLight
+            ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs"
+            : "bg-[#0A1424] border-b border-slate-800/80"
+        }`}
+      >
       {/* Optional Left Search Bar (Wireframe-compliant) */}
       {searchPlaceholder ? (
         <div className="relative max-w-sm w-full">
@@ -638,6 +733,7 @@ export function OwnerHeader({
         </div>
       </div>
     </header>
+    </>
   );
 }
 
@@ -682,6 +778,7 @@ export function OwnerMobileHeader({
 
   return (
     <>
+      <ImpersonateBanner />
       <header
         className={`lg:hidden flex items-center justify-between px-4 py-3 sticky top-0 z-40 transition-colors ${
           isLight

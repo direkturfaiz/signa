@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import {
   Calendar,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import {
+  OwnerAuthGuard,
   OwnerSidebar,
   OwnerHeader,
   OwnerMobileHeader,
@@ -32,7 +33,7 @@ import {
   type OwnerPeriodFilter,
   type OwnerRecentTransaction,
 } from "@/lib/owner";
-import { ownerActions, useOwner } from "@/lib/owner-store";
+import { ownerActions, useOwner, getOwnerAuth } from "@/lib/owner-store";
 
 export const Route = createFileRoute("/owner/dashboard")({
   head: () => ({
@@ -48,7 +49,8 @@ export const Route = createFileRoute("/owner/dashboard")({
 });
 
 function OwnerDashboardPage() {
-  const { activePeriod, searchKeyword } = useOwner();
+  const navigate = useNavigate();
+  const { activePeriod, searchKeyword, isLoggedIn } = useOwner();
   const liveClock = useLiveClock(1000);
   const [metrics, setMetrics] = useState<OwnerDashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,7 @@ function OwnerDashboardPage() {
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   const fetchMetrics = async (isManualRefresh = false) => {
+    if (!isLoggedIn && !getOwnerAuth()) return;
     if (isManualRefresh) {
       setRefreshing(true);
     } else if (!metrics) {
@@ -82,13 +85,14 @@ function OwnerDashboardPage() {
   };
 
   useEffect(() => {
+    if (!isLoggedIn && !getOwnerAuth()) return;
     fetchMetrics();
     // Auto refresh periodically every 30 seconds for live updates
     const timer = setInterval(() => {
       fetchMetrics(true);
     }, 30000);
     return () => clearInterval(timer);
-  }, [activePeriod]);
+  }, [activePeriod, isLoggedIn]);
 
   const handlePeriodChange = (p: OwnerPeriodFilter) => {
     ownerActions.setPeriod(p);
@@ -124,7 +128,8 @@ function OwnerDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
+    <OwnerAuthGuard>
+      <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
       {/* Desktop Sidebar */}
       <OwnerSidebar activePath="/owner/dashboard" />
 
@@ -351,5 +356,6 @@ function OwnerDashboardPage() {
         />
       </div>
     </div>
+    </OwnerAuthGuard>
   );
 }

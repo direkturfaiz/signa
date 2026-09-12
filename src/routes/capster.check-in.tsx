@@ -8,6 +8,7 @@ import {
   PrimaryButton,
 } from "@/components/barberin/ui";
 import {
+  CapsterAuthGuard,
   CapsterHeader,
   CheckInStatusCard,
   ShiftInfoCard,
@@ -86,7 +87,8 @@ function CheckInPage() {
   }
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Check In Shift"
         backTo="/capster/login"
@@ -123,5 +125,6 @@ function CheckInPage() {
         </p>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

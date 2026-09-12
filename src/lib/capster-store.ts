@@ -190,26 +190,75 @@ const initialCapsterState: CapsterState = {
   lastCreatedTransaction: null,
 };
 
+const CAPSTER_LOCAL_KEY = "barberin_capster_state_v1";
 const CAPSTER_STORAGE_KEY = "barberin-capster-state";
+const COOKIE_KEY = "barberin_capster_logged_in";
 
-let state: CapsterState = initialCapsterState;
+export function getCapsterAuth(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw =
+      localStorage.getItem(CAPSTER_LOCAL_KEY) ||
+      sessionStorage.getItem(CAPSTER_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Boolean(parsed && parsed.isLoggedIn);
+    }
+  } catch {}
+  return false;
+}
+
+function loadInitialState(): CapsterState {
+  if (typeof window === "undefined") return initialCapsterState;
+  try {
+    const raw =
+      localStorage.getItem(CAPSTER_LOCAL_KEY) ||
+      sessionStorage.getItem(CAPSTER_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as CapsterState;
+      const today = getTodayShiftDate();
+      return {
+        ...initialCapsterState,
+        ...parsed,
+        shiftInfo: {
+          ...initialCapsterState.shiftInfo,
+          ...(parsed.shiftInfo || {}),
+          date: today.date,
+          day: today.day,
+        },
+      };
+    }
+  } catch {}
+  return initialCapsterState;
+}
+
+let state: CapsterState = loadInitialState();
 const listeners = new Set<() => void>();
 
 function persist() {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(CAPSTER_STORAGE_KEY, JSON.stringify(state));
+    if (state.isLoggedIn) {
+      const serialized = JSON.stringify(state);
+      localStorage.setItem(CAPSTER_LOCAL_KEY, serialized);
+      sessionStorage.setItem(CAPSTER_STORAGE_KEY, serialized);
+      document.cookie = `${COOKIE_KEY}=1; path=/; max-age=2592000; SameSite=Lax`;
+    } else {
+      localStorage.removeItem(CAPSTER_LOCAL_KEY);
+      sessionStorage.removeItem(CAPSTER_STORAGE_KEY);
+      document.cookie = `${COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+    }
   } catch {
     /* ignore */
   }
 }
 
-let hydrated = false;
 function hydrate() {
-  if (hydrated || typeof window === "undefined") return;
-  hydrated = true;
+  if (typeof window === "undefined") return;
   try {
-    const raw = window.sessionStorage.getItem(CAPSTER_STORAGE_KEY);
+    const raw =
+      localStorage.getItem(CAPSTER_LOCAL_KEY) ||
+      sessionStorage.getItem(CAPSTER_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as CapsterState;
       const today = getTodayShiftDate();
@@ -238,14 +287,18 @@ function setState(patch: Partial<CapsterState>) {
 function subscribe(listener: () => void) {
   hydrate();
   listeners.add(listener);
-  listener();
   return () => listeners.delete(listener);
 }
 
 export function useCapster(): CapsterState {
   return useSyncExternalStore(
     subscribe,
-    () => state,
+    () => {
+      if (!state.isLoggedIn && typeof window !== "undefined" && getCapsterAuth()) {
+        state = loadInitialState();
+      }
+      return state;
+    },
     () => initialCapsterState,
   );
 }
@@ -294,16 +347,11 @@ export const capsterActions = {
   },
 
   logout() {
-    setState({
+    state = {
       ...initialCapsterState,
-    });
-    if (typeof window !== "undefined") {
-      try {
-        window.sessionStorage.removeItem(CAPSTER_STORAGE_KEY);
-      } catch {
-        /* ignore */
-      }
-    }
+    };
+    persist();
+    listeners.forEach((l) => l());
   },
 
   setDashboardMetrics(metrics: DashboardMetrics) {

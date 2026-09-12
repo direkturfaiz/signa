@@ -15,6 +15,11 @@ import {
   users,
 } from "@/db/schema";
 import { getWibTimeString } from "@/lib/format";
+import {
+  autoCancelExpiredPendingTransactions,
+  isTransactionExpired,
+  CANCEL_REASON_DETAIL,
+} from "@/lib/auto-cancel";
 
 type CreateManualTransactionInput = {
   customerName: string;
@@ -47,6 +52,9 @@ export const getCapsterTransactions = createServerFn({
     ) => data,
   )
   .handler(async ({ data }) => {
+    // 0. Auto-cancel seluruh transaksi pending yang telah melebihi 2 jam
+    await autoCancelExpiredPendingTransactions();
+
     const targetCapsterId = data?.capsterId?.trim();
     if (!targetCapsterId) {
       return [];
@@ -195,13 +203,16 @@ export const getCapsterTransactions = createServerFn({
 
       const change = Math.max(0, cashReceived - Number(r.total));
 
+      const isExpired = isTransactionExpired(r.created_at, r.status_transaksi);
+
       let displayStatus: "Selesai" | "Menunggu" | "Batal" = "Menunggu";
       if (r.status_transaksi === "paid") {
         displayStatus = "Selesai";
       } else if (
         r.status_transaksi === "cancelled" ||
         bInfo?.status === "cancelled" ||
-        pay?.status_pembayaran === "failed"
+        pay?.status_pembayaran === "failed" ||
+        isExpired
       ) {
         displayStatus = "Batal";
       }
@@ -234,7 +245,9 @@ export const getCapsterTransactions = createServerFn({
         cashReceived,
         change,
         status: displayStatus,
-        notes: bInfo?.catatan ?? undefined,
+        notes: isExpired || displayStatus === "Batal"
+          ? (bInfo?.catatan || CANCEL_REASON_DETAIL)
+          : (bInfo?.catatan ?? undefined),
         capsterId,
         capsterName,
       };
@@ -255,6 +268,9 @@ export const getDashboardMetrics = createServerFn({
     ) => data,
   )
   .handler(async ({ data }) => {
+    // 0. Auto-cancel seluruh transaksi pending yang telah melebihi 2 jam
+    await autoCancelExpiredPendingTransactions();
+
     let targetCapsterId = data?.capsterId?.trim();
 
     if (!targetCapsterId && data?.userId) {
@@ -332,11 +348,13 @@ export const getDashboardMetrics = createServerFn({
     let dibatalkan = 0;
 
     for (const t of txs) {
+      const isExpired = isTransactionExpired(t.created_at, t.status_transaksi);
       if (t.status_transaksi === "paid") {
         selesai++;
       } else if (
         t.status_transaksi === "cancelled" ||
-        t.status_transaksi === "refunded"
+        t.status_transaksi === "refunded" ||
+        isExpired
       ) {
         dibatalkan++;
       } else {

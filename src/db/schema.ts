@@ -8,6 +8,8 @@ import {
   text,
   uuid,
   index,
+  bigint,
+  bigserial,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -19,9 +21,14 @@ export const userRoleEnum = pgEnum("user_role", [
   "capster",
   "owner",
   "admin_platform",
+  "superadmin",
 ]);
 
-export const commonStatusEnum = pgEnum("common_status", ["active", "inactive"]);
+export const commonStatusEnum = pgEnum("common_status", [
+  "active",
+  "inactive",
+  "suspended",
+]);
 
 export const bookingStatusEnum = pgEnum("booking_status", [
   "pending",
@@ -69,12 +76,17 @@ export const users = pgTable(
     no_hp: varchar("no_hp", { length: 50 }),
     role: userRoleEnum("role").notNull(),
     status: commonStatusEnum("status").notNull().default("active"),
+    id_barbershop: uuid("id_barbershop").references(
+      () => barbershop.id_barbershop,
+      { onDelete: "set null" },
+    ),
     created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
     index("users_role_idx").on(table.role),
     index("users_email_idx").on(table.email),
+    index("users_barbershop_idx").on(table.id_barbershop),
   ],
 );
 
@@ -572,3 +584,324 @@ export type NewPembatalan = typeof pembatalan.$inferInsert;
 
 export type AlasanPembatalan = typeof alasanPembatalan.$inferSelect;
 export type NewAlasanPembatalan = typeof alasanPembatalan.$inferInsert;
+
+// ============================================================================
+// SAAS PLATFORM / ADMIN PLATFORM SCHEMA (SESUAI GAMBAR 2)
+// ============================================================================
+
+// SaaS Platform Enums
+export const saasAccountStatusEnum = pgEnum("saas_account_status", [
+  "active",
+  "inactive",
+  "suspended",
+]);
+
+export const saasPlanStatusEnum = pgEnum("saas_plan_status", [
+  "active",
+  "archived",
+]);
+
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "pending",
+  "active",
+  "expired",
+  "cancelled",
+]);
+
+export const subscriptionPaymentStatusEnum = pgEnum(
+  "subscription_payment_status",
+  ["pending", "success", "failed", "refunded"],
+);
+
+export const demoRequestStatusEnum = pgEnum("demo_request_status", [
+  "pending",
+  "diproses",
+  "selesai",
+  "ditolak",
+]);
+
+// 1. OWNER (Menyimpan data pemilik akun platform customer yang menggunakan BARBERIN)
+export const owner = pgTable(
+  "owner",
+  {
+    owner_id: bigserial("owner_id", { mode: "number" }).primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    phone: varchar("phone", { length: 50 }),
+    password_hash: varchar("password_hash", { length: 255 }).notNull(),
+    status: saasAccountStatusEnum("status").notNull().default("active"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("owner_email_idx").on(table.email),
+    index("owner_status_idx").on(table.status),
+  ],
+);
+
+// 2. BUSINESS (Menyimpan data barbershop/bisnis di bawah Owner)
+export const business = pgTable(
+  "business",
+  {
+    business_id: bigserial("business_id", { mode: "number" }).primaryKey(),
+    owner_id: bigint("owner_id", { mode: "number" })
+      .notNull()
+      .references(() => owner.owner_id, { onDelete: "cascade" }),
+    business_name: varchar("business_name", { length: 255 }).notNull(),
+    status: saasAccountStatusEnum("status").notNull().default("active"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("business_owner_idx").on(table.owner_id),
+    index("business_status_idx").on(table.status),
+  ],
+);
+
+// 3. PLAN (Menyimpan paket SaaS: FREE, PRO, ENTERPRISE)
+export const plan = pgTable(
+  "plan",
+  {
+    plan_id: bigserial("plan_id", { mode: "number" }).primaryKey(),
+    plan_name: varchar("plan_name", { length: 100 }).notNull().unique(),
+    description: text("description"),
+    price: numeric("price", { precision: 12, scale: 2 }).notNull().default("0"),
+    billing_period: varchar("billing_period", { length: 50 })
+      .notNull()
+      .default("monthly"),
+    status: saasPlanStatusEnum("status").notNull().default("active"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("plan_name_idx").on(table.plan_name),
+    index("plan_status_idx").on(table.status),
+  ],
+);
+
+// 4. FEATURE (Menyimpan daftar fitur platform BARBERIN)
+export const feature = pgTable(
+  "feature",
+  {
+    feature_id: bigserial("feature_id", { mode: "number" }).primaryKey(),
+    feature_name: varchar("feature_name", { length: 255 }).notNull(),
+    description: text("description"),
+    module: varchar("module", { length: 100 }).notNull(),
+    status: commonStatusEnum("status").notNull().default("active"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("feature_module_idx").on(table.module),
+    index("feature_status_idx").on(table.status),
+  ],
+);
+
+// 5. PLAN_FEATURE (Relasi banyak-ke-banyak antara paket dan fitur)
+export const planFeature = pgTable(
+  "plan_feature",
+  {
+    plan_feature_id: bigserial("plan_feature_id", { mode: "number" }).primaryKey(),
+    plan_id: bigint("plan_id", { mode: "number" })
+      .notNull()
+      .references(() => plan.plan_id, { onDelete: "cascade" }),
+    feature_id: bigint("feature_id", { mode: "number" })
+      .notNull()
+      .references(() => feature.feature_id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("plan_feature_plan_idx").on(table.plan_id),
+    index("plan_feature_feature_idx").on(table.feature_id),
+  ],
+);
+
+// 6. SUBSCRIPTION (Menyimpan histori langganan business terhadap paket)
+export const subscription = pgTable(
+  "subscription",
+  {
+    subscription_id: bigserial("subscription_id", { mode: "number" }).primaryKey(),
+    business_id: bigint("business_id", { mode: "number" })
+      .notNull()
+      .references(() => business.business_id, { onDelete: "cascade" }),
+    plan_id: bigint("plan_id", { mode: "number" })
+      .notNull()
+      .references(() => plan.plan_id, { onDelete: "restrict" }),
+    status: subscriptionStatusEnum("status").notNull().default("pending"),
+    start_date: timestamp("start_date", { mode: "date" }).notNull().defaultNow(),
+    end_date: timestamp("end_date", { mode: "date" }),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("subscription_business_idx").on(table.business_id),
+    index("subscription_plan_idx").on(table.plan_id),
+    index("subscription_status_idx").on(table.status),
+  ],
+);
+
+// 7. SUBSCRIPTION_PAYMENT (Menyimpan pembayaran untuk subscription SaaS)
+export const subscriptionPayment = pgTable(
+  "subscription_payment",
+  {
+    subscription_payment_id: bigserial("subscription_payment_id", {
+      mode: "number",
+    }).primaryKey(),
+    subscription_id: bigint("subscription_id", { mode: "number" })
+      .notNull()
+      .references(() => subscription.subscription_id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    payment_method: varchar("payment_method", { length: 50 }).notNull(),
+    status: subscriptionPaymentStatusEnum("status").notNull().default("pending"),
+    payment_date: timestamp("payment_date", { mode: "date" }).notNull().defaultNow(),
+    reference_id: varchar("reference_id", { length: 255 }).notNull().unique(),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("sub_payment_subscription_idx").on(table.subscription_id),
+    index("sub_payment_status_idx").on(table.status),
+    index("sub_payment_reference_idx").on(table.reference_id),
+  ],
+);
+
+// 8. DEMO_REQUEST (Menyimpan permintaan demo dari calon pelanggan)
+export const demoRequest = pgTable(
+  "demo_request",
+  {
+    demo_request_id: bigserial("demo_request_id", { mode: "number" }).primaryKey(),
+    owner_id: bigint("owner_id", { mode: "number" }).references(
+      () => owner.owner_id,
+      { onDelete: "set null" },
+    ),
+    name: varchar("name", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    phone: varchar("phone", { length: 50 }).notNull(),
+    business_name: varchar("business_name", { length: 255 }),
+    status: demoRequestStatusEnum("status").notNull().default("pending"),
+    notes: text("notes"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("demo_request_owner_idx").on(table.owner_id),
+    index("demo_request_status_idx").on(table.status),
+  ],
+);
+
+// ============================================================================
+// RELATIONS FOR SAAS PLATFORM SCHEMA
+// ============================================================================
+
+export const ownerRelations = relations(owner, ({ many }) => ({
+  businesses: many(business),
+  demoRequests: many(demoRequest),
+}));
+
+export const businessRelations = relations(business, ({ one, many }) => ({
+  owner: one(owner, {
+    fields: [business.owner_id],
+    references: [owner.owner_id],
+  }),
+  subscriptions: many(subscription),
+}));
+
+export const planRelations = relations(plan, ({ many }) => ({
+  subscriptions: many(subscription),
+  planFeatures: many(planFeature),
+}));
+
+export const featureRelations = relations(feature, ({ many }) => ({
+  planFeatures: many(planFeature),
+}));
+
+export const planFeatureRelations = relations(planFeature, ({ one }) => ({
+  plan: one(plan, {
+    fields: [planFeature.plan_id],
+    references: [plan.plan_id],
+  }),
+  feature: one(feature, {
+    fields: [planFeature.feature_id],
+    references: [feature.feature_id],
+  }),
+}));
+
+export const subscriptionRelations = relations(subscription, ({ one, many }) => ({
+  business: one(business, {
+    fields: [subscription.business_id],
+    references: [business.business_id],
+  }),
+  plan: one(plan, {
+    fields: [subscription.plan_id],
+    references: [plan.plan_id],
+  }),
+  payments: many(subscriptionPayment),
+}));
+
+export const subscriptionPaymentRelations = relations(
+  subscriptionPayment,
+  ({ one }) => ({
+    subscription: one(subscription, {
+      fields: [subscriptionPayment.subscription_id],
+      references: [subscription.subscription_id],
+    }),
+  }),
+);
+
+export const demoRequestRelations = relations(demoRequest, ({ one }) => ({
+  owner: one(owner, {
+    fields: [demoRequest.owner_id],
+    references: [owner.owner_id],
+  }),
+}));
+
+// ============================================================================
+// TYPE HELPERS FOR SAAS PLATFORM
+// ============================================================================
+
+export type Owner = typeof owner.$inferSelect;
+export type NewOwner = typeof owner.$inferInsert;
+
+export type Business = typeof business.$inferSelect;
+export type NewBusiness = typeof business.$inferInsert;
+
+export type Plan = typeof plan.$inferSelect;
+export type NewPlan = typeof plan.$inferInsert;
+
+export type Feature = typeof feature.$inferSelect;
+export type NewFeature = typeof feature.$inferInsert;
+
+export type PlanFeature = typeof planFeature.$inferSelect;
+export type NewPlanFeature = typeof planFeature.$inferInsert;
+
+export type Subscription = typeof subscription.$inferSelect;
+export type NewSubscription = typeof subscription.$inferInsert;
+
+export type SubscriptionPayment = typeof subscriptionPayment.$inferSelect;
+export type NewSubscriptionPayment = typeof subscriptionPayment.$inferInsert;
+
+export type DemoRequest = typeof demoRequest.$inferSelect;
+export type NewDemoRequest = typeof demoRequest.$inferInsert;
+
+// ============================================================================
+// SUPERADMIN PLATFORM AUDIT LOGS
+// ============================================================================
+
+export const superadminAuditLogs = pgTable(
+  "superadmin_audit_logs",
+  {
+    id_log: uuid("id_log").defaultRandom().primaryKey(),
+    action: varchar("action", { length: 100 }).notNull(),
+    actor_email: varchar("actor_email", { length: 255 }).notNull(),
+    target_tenant_id: uuid("target_tenant_id"),
+    target_tenant_name: varchar("target_tenant_name", { length: 255 }),
+    details: text("details"),
+    created_at: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("superadmin_logs_action_idx").on(table.action),
+    index("superadmin_logs_created_idx").on(table.created_at),
+  ],
+);
+
+export type SuperadminAuditLog = typeof superadminAuditLogs.$inferSelect;
+export type NewSuperadminAuditLog = typeof superadminAuditLogs.$inferInsert;

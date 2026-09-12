@@ -3,7 +3,7 @@ import { Info, Scissors, Search, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { GlassCard, MobileShell, SkeletonCard } from "@/components/barberin/ui";
-import { CapsterBottomNav, CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterBottomNav, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah } from "@/lib/format";
 import { getServices } from "@/lib/services";
 
@@ -64,7 +64,8 @@ function CapsterServicesPage() {
   );
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Daftar Layanan"
         backTo="/capster/dashboard"
@@ -123,5 +124,6 @@ function CapsterServicesPage() {
 
       <CapsterBottomNav activeTab="services" />
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

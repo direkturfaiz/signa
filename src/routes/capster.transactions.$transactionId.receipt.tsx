@@ -10,7 +10,7 @@ import {
   SecondaryButton,
   SkeletonCard,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { formatRupiah, formatTransactionId } from "@/lib/format";
 import { useCapster, type CapsterTransaction } from "@/lib/capster-store";
 import { getTransactionDetail } from "@/lib/bookings";
@@ -171,35 +171,8 @@ function CapsterReceiptPage() {
     };
   }, [transactionId, trx]);
 
-  if (loading) {
-    return (
-      <MobileShell>
-        <CapsterHeader title="Struk Transaksi" backTo="/capster/transactions" showBack={true} />
-        <main className="flex-1 space-y-3 p-4">
-          <SkeletonCard />
-          <SkeletonCard />
-        </main>
-      </MobileShell>
-    );
-  }
-
-  if (!trx) {
-    return (
-      <MobileShell>
-        <CapsterHeader title="Struk Transaksi" backTo="/capster/transactions" showBack={true} />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-muted-foreground">Struk tidak ditemukan di database.</p>
-          <div className="mt-4 w-full max-w-[200px]">
-            <PrimaryButton onClick={() => navigate({ to: "/capster/transactions" })}>
-              Kembali ke Daftar
-            </PrimaryButton>
-          </div>
-        </main>
-      </MobileShell>
-    );
-  }
-
   const handleDownload = async () => {
+    if (!trx) return;
     setDownloading(true);
     try {
       await downloadThermalPdf(trx);
@@ -245,14 +218,36 @@ function CapsterReceiptPage() {
   };
 
   return (
-    <MobileShell>
-      <CapsterHeader
-        title="Struk Transaksi"
-        subtitle={`#${formatTransactionId(trx.id, trx.date)}`}
-        backTo="/capster/transactions"
-        showBack={true}
-        showActions={false}
-      />
+    <CapsterAuthGuard>
+      {loading ? (
+        <MobileShell>
+          <CapsterHeader title="Struk Transaksi" backTo="/capster/transactions" showBack={true} />
+          <main className="flex-1 space-y-3 p-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </main>
+        </MobileShell>
+      ) : !trx ? (
+        <MobileShell>
+          <CapsterHeader title="Struk Transaksi" backTo="/capster/transactions" showBack={true} />
+          <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <p className="text-muted-foreground">Struk tidak ditemukan di database.</p>
+            <div className="mt-4 w-full max-w-[200px]">
+              <PrimaryButton onClick={() => navigate({ to: "/capster/transactions" })}>
+                Kembali ke Daftar
+              </PrimaryButton>
+            </div>
+          </main>
+        </MobileShell>
+      ) : (
+        <MobileShell>
+          <CapsterHeader
+            title="Struk Transaksi"
+            subtitle={`#${formatTransactionId(trx.id, trx.date)}`}
+            backTo="/capster/transactions"
+            showBack={true}
+            showActions={false}
+          />
 
       <main className="flex-1 px-4 pb-28 pt-3">
         {/* Thermal Slip Receipt Design */}
@@ -370,6 +365,8 @@ function CapsterReceiptPage() {
           BAGIKAN STRUK
         </SecondaryButton>
       </BottomActionBar>
-    </MobileShell>
-  );
+      </MobileShell>
+    )}
+  </CapsterAuthGuard>
+);
 }

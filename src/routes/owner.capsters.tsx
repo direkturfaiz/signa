@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 
 import {
+  OwnerAuthGuard,
   OwnerSidebar,
   OwnerHeader,
   OwnerMobileHeader,
@@ -246,7 +247,8 @@ function OwnerCapstersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
+    <OwnerAuthGuard>
+      <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased">
       <OwnerSidebar activePath="/owner/capsters" />
       <div className="flex-1 flex flex-col min-w-0">
         <OwnerMobileHeader activePath="/owner/capsters" />
@@ -879,6 +881,7 @@ function OwnerCapstersPage() {
         </div>
       )}
     </div>
+    </OwnerAuthGuard>
   );
 }
 

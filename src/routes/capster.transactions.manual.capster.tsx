@@ -10,7 +10,7 @@ import {
   PrimaryButton,
   SkeletonCard,
 } from "@/components/barberin/ui";
-import { CapsterHeader } from "@/components/capster/ui";
+import { CapsterAuthGuard, CapsterHeader } from "@/components/capster/ui";
 import { capsterActions, useCapster, type Capster } from "@/lib/capster-store";
 import { getCapsters } from "@/lib/capsters";
 
@@ -80,7 +80,8 @@ function ManualSelectCapsterPage() {
 };
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Pilih Capster"
         subtitle="Pilih capster yang melayani"
@@ -138,5 +139,6 @@ function ManualSelectCapsterPage() {
         </PrimaryButton>
       </BottomActionBar>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

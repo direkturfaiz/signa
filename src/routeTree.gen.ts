@@ -41,6 +41,9 @@ import { Route as OwnerKomisiRouteImport } from './routes/owner.komisi'
 import { Route as OwnerLoginRouteImport } from './routes/owner.login'
 import { Route as OwnerServicesRouteImport } from './routes/owner.services'
 import { Route as OwnerSettingsRouteImport } from './routes/owner.settings'
+import { Route as SuperadminDashboardRouteImport } from './routes/superadmin.dashboard'
+import { Route as SuperadminLoginRouteImport } from './routes/superadmin.login'
+import { Route as SuperadminTenantsRouteImport } from './routes/superadmin.tenants'
 import { Route as CapsterTransactionsTransactionIdRouteImport } from './routes/capster.transactions.$transactionId'
 import { Route as CapsterTransactionsManualRouteImport } from './routes/capster.transactions.manual'
 import { Route as CapsterTransactionsSuccessRouteImport } from './routes/capster.transactions.success'
@@ -216,6 +219,21 @@ const OwnerSettingsRoute = OwnerSettingsRouteImport.update({
   path: '/owner/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuperadminDashboardRoute = SuperadminDashboardRouteImport.update({
+  id: '/superadmin/dashboard',
+  path: '/superadmin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperadminLoginRoute = SuperadminLoginRouteImport.update({
+  id: '/superadmin/login',
+  path: '/superadmin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperadminTenantsRoute = SuperadminTenantsRouteImport.update({
+  id: '/superadmin/tenants',
+  path: '/superadmin/tenants',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CapsterTransactionsTransactionIdRoute =
   CapsterTransactionsTransactionIdRouteImport.update({
     id: '/$transactionId',
@@ -320,6 +338,9 @@ export interface FileRoutesByFullPath {
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
   '/owner/settings': typeof OwnerSettingsRoute
+  '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/superadmin/login': typeof SuperadminLoginRoute
+  '/superadmin/tenants': typeof SuperadminTenantsRoute
   '/capster/transactions/$transactionId': typeof CapsterTransactionsTransactionIdRouteWithChildren
   '/capster/transactions/manual': typeof CapsterTransactionsManualRouteWithChildren
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
@@ -366,6 +387,9 @@ export interface FileRoutesByTo {
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
   '/owner/settings': typeof OwnerSettingsRoute
+  '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/superadmin/login': typeof SuperadminLoginRoute
+  '/superadmin/tenants': typeof SuperadminTenantsRoute
   '/capster/transactions/$transactionId': typeof CapsterTransactionsTransactionIdRouteWithChildren
   '/capster/transactions/manual': typeof CapsterTransactionsManualRouteWithChildren
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
@@ -413,6 +437,9 @@ export interface FileRoutesById {
   '/owner/login': typeof OwnerLoginRoute
   '/owner/services': typeof OwnerServicesRoute
   '/owner/settings': typeof OwnerSettingsRoute
+  '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/superadmin/login': typeof SuperadminLoginRoute
+  '/superadmin/tenants': typeof SuperadminTenantsRoute
   '/capster/transactions/$transactionId': typeof CapsterTransactionsTransactionIdRouteWithChildren
   '/capster/transactions/manual': typeof CapsterTransactionsManualRouteWithChildren
   '/capster/transactions/success': typeof CapsterTransactionsSuccessRoute
@@ -461,6 +488,9 @@ export interface FileRouteTypes {
     | '/owner/login'
     | '/owner/services'
     | '/owner/settings'
+    | '/superadmin/dashboard'
+    | '/superadmin/login'
+    | '/superadmin/tenants'
     | '/capster/transactions/$transactionId'
     | '/capster/transactions/manual'
     | '/capster/transactions/success'
@@ -507,6 +537,9 @@ export interface FileRouteTypes {
     | '/owner/login'
     | '/owner/services'
     | '/owner/settings'
+    | '/superadmin/dashboard'
+    | '/superadmin/login'
+    | '/superadmin/tenants'
     | '/capster/transactions/$transactionId'
     | '/capster/transactions/manual'
     | '/capster/transactions/success'
@@ -553,6 +586,9 @@ export interface FileRouteTypes {
     | '/owner/login'
     | '/owner/services'
     | '/owner/settings'
+    | '/superadmin/dashboard'
+    | '/superadmin/login'
+    | '/superadmin/tenants'
     | '/capster/transactions/$transactionId'
     | '/capster/transactions/manual'
     | '/capster/transactions/success'
@@ -600,6 +636,9 @@ export interface RootRouteChildren {
   OwnerLoginRoute: typeof OwnerLoginRoute
   OwnerServicesRoute: typeof OwnerServicesRoute
   OwnerSettingsRoute: typeof OwnerSettingsRoute
+  SuperadminDashboardRoute: typeof SuperadminDashboardRoute
+  SuperadminLoginRoute: typeof SuperadminLoginRoute
+  SuperadminTenantsRoute: typeof SuperadminTenantsRoute
   CustomerReceiptTransactionIdRoute: typeof CustomerReceiptTransactionIdRoute
 }
 
@@ -829,6 +868,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/superadmin/dashboard': {
+      id: '/superadmin/dashboard'
+      path: '/superadmin/dashboard'
+      fullPath: '/superadmin/dashboard'
+      preLoaderRoute: typeof SuperadminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/superadmin/login': {
+      id: '/superadmin/login'
+      path: '/superadmin/login'
+      fullPath: '/superadmin/login'
+      preLoaderRoute: typeof SuperadminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/superadmin/tenants': {
+      id: '/superadmin/tenants'
+      path: '/superadmin/tenants'
+      fullPath: '/superadmin/tenants'
+      preLoaderRoute: typeof SuperadminTenantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/capster/transactions/$transactionId': {
       id: '/capster/transactions/$transactionId'
       path: '/$transactionId'
@@ -1027,6 +1087,9 @@ const rootRouteChildren: RootRouteChildren = {
   OwnerLoginRoute: OwnerLoginRoute,
   OwnerServicesRoute: OwnerServicesRoute,
   OwnerSettingsRoute: OwnerSettingsRoute,
+  SuperadminDashboardRoute: SuperadminDashboardRoute,
+  SuperadminLoginRoute: SuperadminLoginRoute,
+  SuperadminTenantsRoute: SuperadminTenantsRoute,
   CustomerReceiptTransactionIdRoute: CustomerReceiptTransactionIdRoute,
 }
 export const routeTree = rootRouteImport

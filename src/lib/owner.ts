@@ -22,6 +22,10 @@ import {
   formatTransactionId,
   formatWaktuRelatif,
 } from "@/lib/format";
+import {
+  autoCancelExpiredPendingTransactions,
+  isTransactionExpired,
+} from "@/lib/auto-cancel";
 
 export type OwnerPeriodFilter = "today" | "7d" | "30d" | "month" | "custom";
 
@@ -257,6 +261,9 @@ export const getOwnerDashboardMetrics = createServerFn({
     ) => data,
   )
   .handler(async ({ data }): Promise<OwnerDashboardMetrics> => {
+    // 0. Auto-cancel seluruh transaksi pending yang telah melebihi 2 jam
+    await autoCancelExpiredPendingTransactions();
+
     const now = new Date();
     const period = data?.period || "today";
     const { startDate, endDate, prevStartDate, prevEndDate, deltaLabel } =
@@ -676,8 +683,9 @@ export const getOwnerDashboardMetrics = createServerFn({
             ? details.map((d) => d.nama_layanan).join(", ")
             : "Layanan Barbershop";
 
+        const isExpired = isTransactionExpired(tx.created_at, tx.status_transaksi);
         let status: "Selesai" | "Diproses" | "Menunggu" | "Batal" = "Selesai";
-        if (tx.status_transaksi === "cancelled") {
+        if (tx.status_transaksi === "cancelled" || isExpired) {
           status = "Batal";
         } else if (tx.status_transaksi === "pending") {
           status = "Menunggu";
@@ -967,6 +975,7 @@ export const loginOwner = createServerFn({
         role: users.role,
         status: users.status,
         password: users.password,
+        id_barbershop: users.id_barbershop,
       })
       .from(users)
       .where(and(eq(users.email, email), eq(users.role, "owner")))
@@ -984,15 +993,37 @@ export const loginOwner = createServerFn({
       throw new Error("Password yang Anda masukkan salah.");
     }
 
-    // Ambil barbershop default
-    const [shop] = await db
-      .select({
-        id_barbershop: barbershop.id_barbershop,
-        nama_barbershop: barbershop.nama_barbershop,
-        alamat: barbershop.alamat,
-      })
-      .from(barbershop)
-      .limit(1);
+    // Ambil barbershop terkait Owner
+    let shop;
+    if (user.id_barbershop) {
+      const [found] = await db
+        .select({
+          id_barbershop: barbershop.id_barbershop,
+          nama_barbershop: barbershop.nama_barbershop,
+          alamat: barbershop.alamat,
+          status: barbershop.status,
+        })
+        .from(barbershop)
+        .where(eq(barbershop.id_barbershop, user.id_barbershop))
+        .limit(1);
+      shop = found;
+    } else {
+      const [found] = await db
+        .select({
+          id_barbershop: barbershop.id_barbershop,
+          nama_barbershop: barbershop.nama_barbershop,
+          alamat: barbershop.alamat,
+          status: barbershop.status,
+        })
+        .from(barbershop)
+        .limit(1);
+      shop = found;
+    }
+
+    // Cek apakah toko berstatus suspended
+    if (shop && (shop.status === "suspended" || shop.status === "inactive")) {
+      throw new Error("Akun toko Anda sedang dinonaktifkan, hubungi admin.");
+    }
 
     return {
       id_user: user.id_user,

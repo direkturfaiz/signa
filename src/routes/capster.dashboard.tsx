@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { MobileShell } from "@/components/barberin/ui";
 import {
+  CapsterAuthGuard,
   CapsterBottomNav,
   CapsterHeader,
   DailyActionButtons,
@@ -97,7 +98,8 @@ function CapsterDashboardPage() {
   };
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Dashboard"
         showBack={false}
@@ -177,5 +179,6 @@ function CapsterDashboardPage() {
 
       <CapsterBottomNav activeTab="dashboard" />
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }

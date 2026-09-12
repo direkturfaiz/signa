@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 
 import {
+  OwnerAuthGuard,
   OwnerSidebar,
   OwnerHeader,
   OwnerMobileHeader,
@@ -314,7 +315,8 @@ function OwnerGajiPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased font-sans">
+    <OwnerAuthGuard>
+      <div className="min-h-screen bg-[#070D18] text-slate-100 flex flex-col lg:flex-row antialiased font-sans">
       {/* Sidebar BARBERIN Desktop */}
       <OwnerSidebar activePath="/owner/gaji" />
 
@@ -1625,5 +1627,6 @@ function OwnerGajiPage() {
         </div>
       )}
     </div>
+    </OwnerAuthGuard>
   );
 }

@@ -120,6 +120,19 @@ export const loginCapster = createServerFn({
       throw new Error("Password yang Anda masukkan salah.");
     }
 
+    // Cek apakah toko capster sedang dinonaktifkan (suspended)
+    if (matched.id_barbershop) {
+      const [shop] = await db
+        .select({ status: barbershop.status })
+        .from(barbershop)
+        .where(eq(barbershop.id_barbershop, matched.id_barbershop))
+        .limit(1);
+
+      if (shop && (shop.status === "suspended" || shop.status === "inactive")) {
+        throw new Error("Akun toko Anda sedang dinonaktifkan, hubungi admin.");
+      }
+    }
+
     return {
       id_capster: matched.id_capster,
       id_user: matched.id_user,

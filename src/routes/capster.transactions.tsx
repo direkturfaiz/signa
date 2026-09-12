@@ -7,6 +7,7 @@ import {
   SkeletonCard,
 } from "@/components/barberin/ui";
 import {
+  CapsterAuthGuard,
   CapsterBottomNav,
   CapsterHeader,
   CapsterTransactionCard,
@@ -93,7 +94,8 @@ function CapsterTransactionsPage() {
   });
 
   return (
-    <MobileShell>
+    <CapsterAuthGuard>
+      <MobileShell>
       <CapsterHeader
         title="Daftar Transaksi"
         backTo="/capster/dashboard"
@@ -212,5 +214,6 @@ function CapsterTransactionsPage() {
         </div>
       </div>
     </MobileShell>
+    </CapsterAuthGuard>
   );
 }
