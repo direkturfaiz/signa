@@ -1,9 +1,12 @@
 import "dotenv/config";
 import postgres from "postgres";
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres";
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("❌ DATABASE_URL is not set in .env!");
+  process.exit(1);
+}
 const sql = postgres(connectionString, { prepare: false });
 
 async function getMetrics(targetCapsterId) {

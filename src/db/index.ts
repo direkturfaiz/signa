@@ -3,9 +3,11 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const rawUrl =
-  process.env["DATABASE_URL"] ||
-  "postgresql://postgres.ppyyebodwmvxtbdaazbm:kelompoksigna@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres";
+const rawUrl = process.env["DATABASE_URL"];
+
+if (!rawUrl) {
+  throw new Error("DATABASE_URL is not configured");
+}
 
 // Supabase pooler pada port 5432 adalah Session Mode (limit max 15 koneksi, rentan EMAXCONNSESSION di serverless Vercel).
 // Port 6543 adalah Transaction Mode yang didesain khusus untuk serverless/Vercel.
