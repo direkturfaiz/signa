@@ -26,11 +26,8 @@ import {
 import { formatRupiah } from "@/lib/format";
 import { actions, cartCount, cartTotal, useBarberin, type Service } from "@/lib/barberin-store";
 import { getServices } from "@/lib/services";
-import {
-  getPublicBarbershopInfo,
-  isBarbershopOpen,
-  type PublicBarbershopInfo,
-} from "@/lib/barbershop-operating";
+import { getPublicBarbershopInfo } from "@/lib/barbershop-operating";
+import { isBarbershopOpen, type PublicBarbershopInfo } from "@/lib/operating-hours";
 
 function formatWaNumber(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -277,7 +274,8 @@ function ServicesPage() {
                   Barbershop Sedang Tutup
                 </h2>
                 <p className="text-xs text-slate-300 leading-relaxed max-w-[320px] mx-auto">
-                  Mohon maaf, pemesanan layanan saat ini tidak dapat dilakukan karena sedang berada di luar jam operasional outlet.
+                  Mohon maaf, pemesanan layanan saat ini tidak dapat dilakukan karena sedang berada
+                  di luar jam operasional outlet.
                 </p>
               </div>
 
@@ -298,9 +296,7 @@ function ServicesPage() {
                 </div>
                 <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400 text-center">
                   Pemesanan dibuka kembali pukul{" "}
-                  <strong className="text-emerald-400 font-bold">
-                    {displayJamBuka} WIB
-                  </strong>
+                  <strong className="text-emerald-400 font-bold">{displayJamBuka} WIB</strong>
                 </div>
               </div>
 
@@ -325,7 +321,10 @@ function ServicesPage() {
 
           {/* Locked Bottom Action Bar */}
           <BottomActionBar>
-            <PrimaryButton disabled className="opacity-60 cursor-not-allowed bg-slate-800 text-slate-400 border border-slate-700">
+            <PrimaryButton
+              disabled
+              className="opacity-60 cursor-not-allowed bg-slate-800 text-slate-400 border border-slate-700"
+            >
               <Lock className="h-4 w-4" />
               <span>Barbershop Tutup (Buka {displayJamBuka} WIB)</span>
             </PrimaryButton>
@@ -353,7 +352,10 @@ function ServicesPage() {
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Scissors className="h-4 w-4 shrink-0 text-primary-soft" strokeWidth={2} />
+                          <Scissors
+                            className="h-4 w-4 shrink-0 text-primary-soft"
+                            strokeWidth={2}
+                          />
                           <p className="min-w-0 text-[15px] font-semibold leading-snug">
                             {service.name}
                           </p>
@@ -369,7 +371,9 @@ function ServicesPage() {
                         type="button"
                         aria-pressed={selected}
                         aria-label={
-                          selected ? `Hapus ${service.name} dari keranjang` : `Tambah ${service.name}`
+                          selected
+                            ? `Hapus ${service.name} dari keranjang`
+                            : `Tambah ${service.name}`
                         }
                         onClick={() => actions.toggleService(service)}
                         className={
